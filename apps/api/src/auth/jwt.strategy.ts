@@ -1,0 +1,27 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AuthUser } from '../common/decorators/current-user.decorator';
+
+export interface JwtPayload {
+  sub: string;
+  username: string;
+  role: 'ADMIN' | 'OPERATOR';
+  type: 'access' | 'refresh';
+}
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(config: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: config.get<string>('JWT_ACCESS_SECRET', 'change-me-access-secret'),
+    });
+  }
+
+  validate(payload: JwtPayload): AuthUser {
+    return { userId: payload.sub, username: payload.username, role: payload.role };
+  }
+}

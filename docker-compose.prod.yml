@@ -1,0 +1,91 @@
+# Cấu hình PRODUCTION cho 1 máy ảo (Alibaba Cloud ECS) + tên miền + HTTPS tự động (Caddy).
+# Chạy:  docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Chỉ Caddy mở ra internet (80/443). postgres/redis/api/web chạy trong mạng nội bộ,
+# KHÔNG publish cổng ra ngoài.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900s}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      PUBLIC_LINK_DOMAIN: ${PUBLIC_LINK_DOMAIN}
+      TRAFFIC_SYNC_INTERVAL_SEC: ${TRAFFIC_SYNC_INTERVAL_SEC:-60}
+      LINK_CACHE_TTL_SEC: ${LINK_CACHE_TTL_SEC:-30}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    # migrate + seed (idempotent) + start
+    command: sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: always
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

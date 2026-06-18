@@ -1,0 +1,122 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  role         Role       @default(OPERATOR)
+  createdAt    DateTime   @default(now())
+  auditLogs    AuditLog[]
+}
+
+/// 广告单链接 — intermediate redirect link
+model Link {
+  id          String       @id @default(cuid())
+  name        String
+  description String       @default("")
+  note        String       @default("")
+  shortCode   String       @unique
+  status      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  linkAds     LinkAd[]
+  trackers    LinkTracker[]
+}
+
+/// 广告 — destination ad (target URL)
+model Ad {
+  id          String    @id @default(cuid())
+  name        String
+  targetUrl   String
+  description String    @default("")
+  status      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  linkAds     LinkAd[]
+}
+
+/// N-N relation between Link and Ad with per-membership config
+model LinkAd {
+  id         String         @id @default(cuid())
+  linkId     String
+  adId       String
+  weight     Int            @default(50)
+  dailyLimit Int            @default(50000)
+  note       String         @default("")
+  status     Boolean        @default(true)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  link       Link           @relation(fields: [linkId], references: [id])
+  ad         Ad             @relation(fields: [adId], references: [id])
+  traffic    TrafficDaily[]
+
+  @@unique([linkId, adId])
+  @@index([linkId])
+  @@index([adId])
+}
+
+/// 统计 — third-party tracker code
+model Tracker {
+  id          String        @id @default(cuid())
+  name        String
+  description String        @default("")
+  code        String        @default("")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  links       LinkTracker[]
+}
+
+/// Link ↔ Tracker (N-N)
+model LinkTracker {
+  linkId    String
+  trackerId String
+  link      Link    @relation(fields: [linkId], references: [id])
+  tracker   Tracker @relation(fields: [trackerId], references: [id])
+
+  @@id([linkId, trackerId])
+  @@index([trackerId])
+}
+
+/// Per-day traffic count for each link-ad membership
+model TrafficDaily {
+  id       String   @id @default(cuid())
+  linkAdId String
+  date     DateTime @db.Date
+  count    Int      @default(0)
+  linkAd   LinkAd   @relation(fields: [linkAdId], references: [id])
+
+  @@unique([linkAdId, date])
+  @@index([date])
+}
+
+/// 操作日志 — audit trail of all write operations
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  module    String
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([module])
+  @@index([createdAt])
+  @@index([userId])
+}

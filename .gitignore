@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local
+.env.production
+.DS_Store
+apps/web/dist/
+apps/api/dist/
+apps/api/prisma/*.db
+.vite/
+*.tsbuildinfo
+apps/web/vite.config.js
+apps/web/vite.config.d.ts

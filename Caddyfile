@@ -1,0 +1,12 @@
+# Caddy tự động xin & gia hạn chứng chỉ Let's Encrypt cho {$DOMAIN}.
+# Yêu cầu: bản ghi A của tên miền trỏ về IP công khai của ECS, mở cổng 80 & 443.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+	# web (nginx) phục vụ SPA và proxy /api, /main về api nội bộ
+	reverse_proxy web:80
+}

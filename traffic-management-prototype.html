@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流量管理系统 · Traffic Console v1.0</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='10' fill='%237b6cf0'/><text x='24' y='33' font-size='26' text-anchor='middle' fill='white' font-family='sans-serif'>流</text></svg>">
+<style>
+  :root{
+    --ink:#1c2230; --ink-2:#262e42; --ink-3:#313b55;
+    --bg:#eef0f5; --card:#ffffff; --line:#e3e6ee;
+    --text:#2a3040; --muted:#8a91a5; --faint:#b7bccb;
+    --violet:#7b6cf0; --violet-soft:#efeCFF;
+    --teal:#2fb3c4; --teal-soft:#e2f5f8;
+    --orange:#f07f3c; --green:#3aa86b; --blue:#3d7bd9; --red:#d9534f;
+    --radius:10px;
+    --mono:"SF Mono","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    background:var(--bg); color:var(--text); font-size:14px; display:flex;
+  }
+  button{font:inherit;cursor:pointer;border:none;background:none}
+  input,select,textarea{font:inherit;color:inherit}
+
+  /* ---------- Sidebar ---------- */
+  aside{
+    width:218px; min-width:218px; background:var(--ink); color:#cfd4e2;
+    display:flex; flex-direction:column; height:100vh; position:sticky; top:0;
+  }
+  .logo{display:flex;align-items:center;gap:10px;padding:22px 20px 18px;border-bottom:1px solid var(--ink-3)}
+  .logo svg{width:38px;height:38px;flex:none}
+  .logo .t b{display:block;font-size:15px;color:#fff;letter-spacing:.5px}
+  .logo .t span{font-size:11px;color:var(--faint)}
+  nav{padding:14px 10px;flex:1}
+  nav button{
+    display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;margin:2px 0;
+    border-radius:8px;color:#aab1c5;font-size:14px;text-align:left;transition:background .15s,color .15s;
+  }
+  nav button .ic{width:18px;text-align:center;font-size:15px}
+  nav button:hover{background:var(--ink-2);color:#fff}
+  nav button.on{background:var(--violet);color:#fff;font-weight:600}
+  nav button:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+  .user{padding:16px 20px;border-top:1px solid var(--ink-3);display:flex;align-items:center;gap:10px;font-size:13px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+
+  /* ---------- Main ---------- */
+  main{flex:1;min-width:0;padding:26px 30px 60px;overflow-y:auto}
+  .pagehead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+  .pagehead h1{font-size:20px;font-weight:700}
+  .pagehead .crumb{font-size:12px;color:var(--muted);margin-top:4px}
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(28,34,48,.05)}
+  .card + .card{margin-top:18px}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .card-head .lt{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .card-head h3{font-size:14px;font-weight:700}
+  .card-head .url{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .kpis{display:flex;gap:18px;font-size:12px;color:var(--muted)}
+  .kpis b{color:var(--text);font-family:var(--mono);font-size:13px}
+  .kpis .live b{color:var(--teal)}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;margin-right:5px;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#f6f7fa;color:var(--muted);font-weight:600;font-size:12px;text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafbfd}
+  td.num,th.num{text-align:right;font-family:var(--mono)}
+  td.c,th.c{text-align:center}
+  .mono{font-family:var(--mono);font-size:12.5px}
+  .linkish{color:var(--blue);cursor:pointer;font-weight:600}
+  .linkish:hover{text-decoration:underline}
+  .count-chip{display:inline-flex;min-width:26px;justify-content:center;padding:2px 8px;border-radius:20px;background:#eaf3ea;color:var(--green);font-weight:700;font-family:var(--mono);cursor:pointer;border:1px solid #cfe6d4}
+  .count-chip.zero{background:#f3f4f7;color:var(--faint);border-color:var(--line)}
+  .count-chip:hover{filter:brightness(.96)}
+
+  /* toggle */
+  .tg{position:relative;width:38px;height:21px;border-radius:21px;background:#d4d8e2;transition:background .15s;flex:none;vertical-align:middle}
+  .tg::after{content:"";position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .tg.on{background:var(--violet)}
+  .tg.on::after{left:19px}
+  .tg:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+
+  /* inline edit */
+  .ie{display:inline-block;min-width:40px;padding:2px 6px;border:1px dashed transparent;border-radius:5px;cursor:text}
+  .ie:hover{border-color:var(--faint);background:#fbfbfd}
+  .ie input{width:110px;border:1px solid var(--violet);border-radius:5px;padding:2px 6px;font-size:13px}
+  .ie input.w-s{width:64px}
+  .hint{font-size:11px;color:var(--faint)}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;transition:filter .12s}
+  .btn:hover{filter:brightness(.95)}
+  .btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn-violet{background:var(--violet);color:#fff}
+  .btn-teal{background:var(--teal);color:#fff}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--text)}
+  .btn-danger-soft{background:#fdeeee;color:var(--red);border:1px solid #f4d4d3;padding:4px 10px;font-size:12px}
+  .btn-danger-soft[disabled]{opacity:.4;cursor:not-allowed}
+  .btn-sm{padding:4px 10px;font-size:12px}
+
+  .search{position:relative}
+  .search input{
+    width:240px;padding:7px 30px 7px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;font-size:13px;
+  }
+  .search input:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px var(--violet-soft)}
+  .search::after{content:"⌕";position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:16px}
+  input[type=date]{padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;font-size:13px}
+
+  /* form */
+  .form{padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+  .form .full{grid-column:1/-1}
+  .fld label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .fld input,.fld textarea,.fld .pick{
+    width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;font-size:13px;
+  }
+  .fld input:focus,.fld textarea:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px var(--violet-soft)}
+  .fld textarea{font-family:var(--mono);font-size:12px;min-height:140px;resize:vertical}
+  .fld .pick{display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:var(--muted)}
+  .fld .pick.has{color:var(--text)}
+  .form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;padding-top:4px}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(20,24,36,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal{background:#fff;border-radius:12px;max-height:88vh;display:flex;flex-direction:column;width:min(520px,100%);box-shadow:0 18px 50px rgba(15,18,30,.35);animation:pop .15s ease-out}
+  .modal.wide{width:min(880px,100%)}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-head{padding:15px 20px;border-bottom:1px solid var(--line);font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .modal-head button{color:var(--faint);font-size:18px;line-height:1;padding:2px 6px;border-radius:6px}
+  .modal-head button:hover{background:#f3f4f7;color:var(--text)}
+  .modal-body{padding:16px 20px;overflow-y:auto}
+  .modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+
+  /* transfer */
+  .transfer{display:grid;grid-template-columns:1fr 70px 1fr;gap:12px;align-items:stretch}
+  .tcol{border:1px solid var(--line);border-radius:9px;overflow:hidden;display:flex;flex-direction:column;min-height:300px}
+  .tcol h4{font-size:12px;color:var(--muted);padding:9px 12px;background:#f6f7fa;border-bottom:1px solid var(--line)}
+  .tcol h4 b{color:var(--text)}
+  .tcol ul{list-style:none;overflow-y:auto;flex:1}
+  .tcol li{display:flex;align-items:center;gap:9px;padding:8px 12px;border-bottom:1px solid #f0f1f6;cursor:pointer;font-size:13px}
+  .tcol li:hover{background:#fafbfd}
+  .tcol li.sel{background:var(--violet-soft)}
+  .tcol li .d{color:var(--muted);font-size:12px;margin-left:auto}
+  .tmid{display:flex;flex-direction:column;justify-content:center;gap:10px}
+  .tmid button{width:100%;padding:9px 0;border-radius:8px;font-size:16px;font-weight:700;border:1px solid var(--line);background:#fff;transition:all .12s}
+  .tmid .to-in{color:var(--blue)} .tmid .to-out{color:var(--green)}
+  .tmid button:hover{border-color:currentColor}
+  .tmid button[disabled]{opacity:.35;cursor:not-allowed}
+
+  .chk{width:15px;height:15px;border:1.5px solid var(--faint);border-radius:4px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+  li.sel .chk,.statrow.sel .chk{background:var(--violet);border-color:var(--violet)}
+  li.sel .chk::after,.statrow.sel .chk::after{content:"✓"}
+
+  .statrow{display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:13px}
+  .statrow:hover{border-color:var(--violet)}
+  .statrow.sel{border-color:var(--violet);background:var(--violet-soft)}
+  .statrow .d{margin-left:auto;color:var(--muted);font-size:12px;font-family:var(--mono)}
+
+  .empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13px}
+  .empty b{display:block;color:var(--text);margin-bottom:5px;font-size:14px}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;font-size:13px;opacity:0;pointer-events:none;transition:all .2s;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
+  .tag-v{background:var(--violet-soft);color:var(--violet)}
+  .note-banner{margin-bottom:16px;padding:10px 14px;border-radius:8px;background:#fff8ec;border:1px solid #f3e2bd;color:#8a6d2f;font-size:12.5px}
+
+  /* statistics page split */
+  .split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:18px;align-items:start}
+  @media(max-width:1100px){.split{grid-template-columns:1fr}}
+  @media(max-width:900px){
+    aside{width:64px;min-width:64px}
+    .logo .t,nav button span.lbl,.user .un{display:none}
+    nav button{justify-content:center;padding:11px 0}
+    main{padding:18px 14px 50px}
+    .form{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="logo">
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <g fill="#9aa3c0">
+        <ellipse cx="24" cy="19" rx="13" ry="12"/>
+        <path d="M11 26c-2 5-6 7-8 7 3 3 7 2 9-1M16 29c-1 6-4 9-7 10 4 2 8-1 9-5M24 31c0 6-2 10-4 12 4 1 7-3 7-8M32 29c1 6 4 9 7 10-4 2-8-1-9-5M37 26c2 5 6 7 8 7-3 3-7 2-9-1" stroke="#9aa3c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </g>
+      <circle cx="19" cy="18" r="2.6" fill="#1c2230"/><circle cx="29" cy="18" r="2.6" fill="#1c2230"/>
+      <circle cx="19.8" cy="17.2" r=".9" fill="#fff"/><circle cx="29.8" cy="17.2" r=".9" fill="#fff"/>
+    </svg>
+    <div class="t"><b>流量管理系统</b><span>Traffic Console · v1.0</span></div>
+  </div>
+  <nav id="nav"></nav>
+  <div class="user"><div class="avatar">B</div><span class="un">BOB · 管理员</span></div>
+</aside>
+
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+<div id="modal-root"></div>
+
+<script>
+/* ================= Data (in-memory) ================= */
+let seq = 100;
+const uid = p => p + (++seq);
+
+const stats = [
+  {id:'st1', name:'11-02-01', desc:'51la_v6', code:'<script src="//js.users.51.la/xxxx1.js"><\/script>'},
+  {id:'st2', name:'11-02-02', desc:'51la_v6', code:'<script src="//js.users.51.la/xxxx2.js"><\/script>'},
+];
+
+const ads = [
+  {id:'a1', name:'sm-251',   url:'https://aj02.opnews.net', desc:'sly-0517上线', status:true},
+  {id:'a2', name:'sm-bz13',  url:'https://aj03.opnews.net', desc:'bz-0427上线',  status:true},
+  {id:'a3', name:'sm-gy168', url:'https://aj05.opnews.net', desc:'sly-0517上线', status:true},
+  {id:'a4', name:'sm-bz14',  url:'https://aj06.opnews.net', desc:'bz-0427上线',  status:false},
+  {id:'a5', name:'sm-631',   url:'https://aj08.opnews.net', desc:'xy-0307上线',  status:true},
+  {id:'a6', name:'sm-xh174', url:'https://aj09.opnews.net', desc:'xh-0520上线',  status:true},
+];
+
+/* membership: per-link ad config (weight/limit/note/status/today flow) */
+const links = [
+  {id:'l1', name:'11-02-01', desc:'android-天气', note:'1000-541-238', status:true,
+   url:'http://p-pro.yaybyc.cn/main/link/o702jib0', statIds:['st1'],
+   items:[
+     {adId:'a1', weight:50, limit:50000, today:47291, yesterday:49982, status:true,  note:'sly-0517上线'},
+     {adId:'a2', weight:50, limit:50000, today:47294, yesterday:49874, status:true,  note:'bz-0427上线'},
+   ]},
+  {id:'l2', name:'11-02-02', desc:'android-天气', note:'1000-532-219', status:true,
+   url:'http://p-pro.yaybyc.cn/main/link/0s94k1ss', statIds:['st2'], items:[]},
+];
+
+const logs = [
+  {t:'2026-06-12 09:41:05', u:'BOB', m:'链接管理', a:'修改广告 sm-bz13 限流 45000 → 50000（链接 11-02-01）'},
+  {t:'2026-06-12 09:12:48', u:'BOB', m:'广告管理', a:'上线广告 sm-xh174'},
+  {t:'2026-06-11 18:30:11', u:'BOB', m:'链接管理', a:'新建链接 11-02-02（android-天气）'},
+  {t:'2026-06-11 17:02:36', u:'BOB', m:'统计管理', a:'新建统计 11-02-02（51la_v6）'},
+];
+
+function addLog(m,a){ logs.unshift({t:now(), u:'BOB', m, a}); }
+function now(){ const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+const fmt = n => n.toLocaleString('en-US');
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= Persistence (localStorage) ================= */
+const LS_KEY = 'tms-data-v1';
+const todayStr = () => new Date().toISOString().slice(0,10);
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({seq, stats, ads, links, logs, day:todayStr()})); }catch(e){}
+}
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if(!d) return;
+    seq = d.seq || seq;
+    stats.splice(0, stats.length, ...(d.stats||[]));
+    ads.splice(0, ads.length, ...(d.ads||[]));
+    links.splice(0, links.length, ...(d.links||[]));
+    logs.splice(0, logs.length, ...(d.logs||[]));
+    /* new day: roll today's flow into yesterday */
+    if(d.day && d.day !== todayStr())
+      links.forEach(l=>l.items.forEach(it=>{ it.yesterday=it.today; it.today=0; }));
+  }catch(e){}
+}
+function resetData(){
+  if(!confirm('确认重置为初始演示数据？当前所有修改将丢失。')) return;
+  localStorage.removeItem(LS_KEY); location.reload();
+}
+function clearLogs(){
+  if(!confirm('确认清空全部操作日志？')) return;
+  logs.length=0; toast('日志已清空'); render();
+}
+const ad = id => ads.find(a=>a.id===id);
+const usedIn = adId => links.filter(l=>l.items.some(i=>i.adId===adId)).length;
+const statUsed = stId => links.filter(l=>l.statIds.includes(stId)).length;
+
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ================= Router ================= */
+const PAGES = [
+  {id:'home',  ic:'⌂', lbl:'首页'},
+  {id:'query', ic:'⌕', lbl:'数据查询'},
+  {id:'links', ic:'⛓', lbl:'链接管理'},
+  {id:'ads',   ic:'▶', lbl:'广告管理'},
+  {id:'stats', ic:'∑', lbl:'统计管理'},
+  {id:'logs',  ic:'≣', lbl:'操作日志'},
+];
+let route = {page:'home', linkId:null, showForm:false, filterAd:null, filterStat:null, editStat:null};
+
+function go(page, extra={}){ route={page, linkId:null, showForm:false, filterAd:null, filterStat:null, editStat:null, ...extra}; render(); }
+
+function renderNav(){
+  document.getElementById('nav').innerHTML = PAGES.map(p=>
+    `<button class="${route.page===p.id?'on':''}" onclick="go('${p.id}')">
+       <span class="ic">${p.ic}</span><span class="lbl">${p.lbl}</span></button>`).join('');
+}
+
+function render(){
+  renderNav();
+  /* preserve focus + caret across re-render (search boxes etc.) */
+  const ae=document.activeElement;
+  const keep = ae && ae.dataset ? ae.dataset.keep : null;
+  let ss=0, se=0;
+  if(keep){ try{ ss=ae.selectionStart; se=ae.selectionEnd; }catch(e){} }
+  const m=document.getElementById('main');
+  if(route.page==='home')  m.innerHTML=pageHome();
+  if(route.page==='query') m.innerHTML=pageQuery();
+  if(route.page==='links') m.innerHTML= route.linkId? pageLinkEdit(route.linkId) : pageLinks();
+  if(route.page==='ads')   m.innerHTML=pageAds();
+  if(route.page==='stats') m.innerHTML=pageStats();
+  if(route.page==='logs')  m.innerHTML=pageLogs();
+  if(keep){ const el=m.querySelector(`[data-keep="${keep}"]`);
+    if(el){ el.focus(); try{ el.setSelectionRange(ss,se); }catch(e){} } }
+  save();
+}
+
+/* ================= toggle / inline edit helpers ================= */
+function tg(on, fn){ return `<button class="tg ${on?'on':''}" role="switch" aria-checked="${on}" onclick="${fn}"></button>`; }
+
+function toggleLink(id){ const l=links.find(x=>x.id===id); l.status=!l.status;
+  addLog('链接管理', `${l.status?'上线':'下线'}链接 ${l.name}`); toast(`链接 ${l.name} 已${l.status?'上线':'下线'}`); render(); }
+function toggleAd(id){ const a=ad(id); a.status=!a.status;
+  addLog('广告管理', `${a.status?'上线':'下线'}广告 ${a.name}`); toast(`广告 ${a.name} 已${a.status?'上线':'下线'}`); render(); }
+function toggleItem(linkId, adId){ const it=links.find(l=>l.id===linkId).items.find(i=>i.adId===adId);
+  it.status=!it.status; addLog('链接管理', `${it.status?'上线':'下线'}广告 ${ad(adId).name}（链接内）`); render(); }
+
+/* inline edit: click → input, Enter confirms */
+function ie(val, save, small){
+  return `<span class="ie" title="点击编辑，回车确认" onclick="ieOpen(this,'${save}',${small?1:0})">${val}</span>`;
+}
+function ieOpen(el, saveFn, small){
+  if(el.querySelector('input')) return;
+  const old = el.textContent;
+  el.innerHTML = `<input class="${small?'w-s':''}" value="${old.replace(/"/g,'&quot;')}">`;
+  const inp = el.querySelector('input'); inp.focus(); inp.select();
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ inp._done=true; window[saveFn](inp.value.trim(), old); }
+    if(e.key==='Escape'){ inp._done=true; render(); }
+  });
+  inp.addEventListener('blur', ()=>{ if(!inp._done) render(); });
+}
+let ieCtx=null;
+
+/* ================= Page: Home ================= */
+function pageHome(){
+  const today = new Date().toISOString().slice(0,10);
+  return `
+  <div class="pagehead">
+    <div><h1>首页</h1><div class="crumb">在线广告单链接 · 实时流量总览</div></div>
+    <div class="toolbar"><input type="date" value="${today}" onchange="toast('原型演示：日期切换后将加载对应数据')"></div>
+  </div>
+  ${links.map(l=>{
+    const y = l.items.reduce((s,i)=>s+(i.yesterday||0),0);
+    const t = l.items.reduce((s,i)=>s+(i.today||0),0);
+    return `<div class="card">
+      <div class="card-head">
+        <div class="lt"><h3>${esc(l.name)}</h3><span class="url">${esc(l.url)}</span></div>
+        <div class="kpis">
+          <span>昨日总量 <b>${l.items.length?fmt(y):'—'}</b></span>
+          <span class="live"><span class="dot"></span>今日实时 <b data-live="${l.id}">${l.items.length?fmt(t):'—'}</b></span>
+        </div>
+      </div>
+      ${l.items.length? `<table>
+        <thead><tr><th class="c" style="width:50px">序列</th><th>名称</th><th>链接</th>
+        <th class="num">权重</th><th class="num">限流</th><th class="num">日流</th><th class="c">状态</th><th>备注</th></tr></thead>
+        <tbody>${l.items.map((it,i)=>{const a=ad(it.adId);return `<tr>
+          <td class="c">${i+1}</td><td><b>${esc(a.name)}</b></td><td class="mono">${esc(a.url)}</td>
+          <td class="num">${it.weight}</td><td class="num">${fmt(it.limit)}</td>
+          <td class="num" data-flow="${l.id}-${it.adId}">${fmt(it.today)}</td>
+          <td class="c">${tg(it.status,`toggleItem('${l.id}','${it.adId}')`)}</td>
+          <td>${esc(it.note)}</td></tr>`;}).join('')}</tbody>
+      </table>`
+      : `<div class="empty"><b>此广告单暂无广告</b>前往「链接管理」为该链接添加广告</div>`}
+    </div>`;}).join('')}`;
+}
+
+/* simulated real-time tick */
+setInterval(()=>{
+  if(route.page!=='home') return;
+  links.forEach(l=>l.items.forEach(it=>{
+    if(it.status && it.today<it.limit) it.today += Math.floor(Math.random()*3);
+    const cell=document.querySelector(`[data-flow="${l.id}-${it.adId}"]`);
+    if(cell) cell.textContent=fmt(it.today);
+  }));
+  links.forEach(l=>{ const el=document.querySelector(`[data-live="${l.id}"]`);
+    if(el && l.items.length) el.textContent=fmt(l.items.reduce((s,i)=>s+i.today,0)); });
+}, 1500);
+
+/* ================= Page: Query ================= */
+let q = {date:new Date().toISOString().slice(0,10), link:'', ad:''};
+function pageQuery(){
+  const hit = links.filter(l=>
+    (!q.link || l.name.includes(q.link) || l.desc.includes(q.link)) &&
+    (!q.ad || l.items.some(i=>ad(i.adId).name.includes(q.ad))));
+  return `
+  <div class="pagehead">
+    <div><h1>数据查询</h1><div class="crumb">复合搜索：时间 × 广告单链接 × 广告</div></div>
+    <div class="toolbar">
+      <input type="date" value="${q.date}" onchange="q.date=this.value;render()">
+      <div class="search"><input data-keep="q-link" placeholder="广告单名称" value="${esc(q.link)}" oninput="q.link=this.value;render()"></div>
+      <div class="search"><input data-keep="q-ad" placeholder="广告名称" value="${esc(q.ad)}" oninput="q.ad=this.value;render()"></div>
+    </div>
+  </div>
+  ${hit.length? hit.map(l=>`<div class="card">
+    <div class="card-head"><div class="lt"><h3>${esc(l.name)}</h3><span class="url">${esc(l.url)}</span></div>
+      <span class="tag tag-v">${q.date} 当日数据</span></div>
+    ${l.items.length? `<table>
+      <thead><tr><th class="c" style="width:50px">序列</th><th>名称</th><th>链接</th>
+      <th class="num">权重</th><th class="num">限流</th><th class="num">日流</th><th class="c">状态</th><th>备注</th></tr></thead>
+      <tbody>${l.items.filter(i=>!q.ad||ad(i.adId).name.includes(q.ad)).map((it,i)=>{const a=ad(it.adId);return `<tr>
+        <td class="c">${i+1}</td><td><b>${esc(a.name)}</b></td><td class="mono">${esc(a.url)}</td>
+        <td class="num">${it.weight}</td><td class="num">${fmt(it.limit)}</td><td class="num">${fmt(it.today)}</td>
+        <td class="c">${tg(it.status,`toggleItem('${l.id}','${it.adId}')`)}</td><td>${esc(it.note)}</td></tr>`;}).join('')}</tbody>
+    </table>` : `<div class="empty"><b>此广告单暂无广告</b></div>`}
+  </div>`).join('')
+  : `<div class="card"><div class="empty"><b>未找到匹配结果</b>调整日期或关键词后重试</div></div>`}`;
+}
+
+/* ================= Page: Links ================= */
+let linkSearch='';
+function pageLinks(){
+  const list = links.filter(l=>!linkSearch||l.name.includes(linkSearch)||l.desc.includes(linkSearch)||l.note.includes(linkSearch));
+  return `
+  <div class="pagehead">
+    <div><h1>链接管理</h1><div class="crumb">广告单链接的创建、上下线与编辑</div></div>
+    <div class="toolbar">
+      <div class="search"><input data-keep="link-search" placeholder="链接名称 / 描述 / 备注" value="${esc(linkSearch)}" oninput="linkSearch=this.value;render()"></div>
+      <button class="btn btn-violet" onclick="route.showForm=!route.showForm;render()">＋ 新建链接</button>
+    </div>
+  </div>
+  ${route.showForm? newLinkForm() : ''}
+  <div class="card"><table>
+    <thead><tr><th class="c" style="width:50px">序列</th><th>名称</th><th>描述</th><th class="c">广告数</th>
+    <th class="c">状态</th><th>备注 <span class="hint">（点击编辑·回车生效）</span></th><th class="c">编辑</th></tr></thead>
+    <tbody>${list.map((l,i)=>`<tr>
+      <td class="c">${i+1}</td>
+      <td><span class="linkish" onclick="route.linkId='${l.id}';render()">${esc(l.name)}</span></td>
+      <td>${esc(l.desc)}</td>
+      <td class="c"><span class="count-chip ${l.items.length?'':'zero'}" title="点击进入此广告单编辑页"
+        onclick="route.linkId='${l.id}';render()">${l.items.length}</span></td>
+      <td class="c">${tg(l.status,`toggleLink('${l.id}')`)}</td>
+      <td>${ie(esc(l.note), mkNoteSaver(l.id))}</td>
+      <td class="c"><button class="btn btn-danger-soft" ${l.items.length?'disabled title="仅可删除不包含广告的链接"':''}
+        onclick="delLink('${l.id}')">删除</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+const savers={};
+function mkNoteSaver(id){
+  const fn='sv_'+id;
+  window[fn]=(v,old)=>{ const l=links.find(x=>x.id===id); l.note=v;
+    addLog('链接管理',`修改链接 ${l.name} 备注「${old}」→「${v}」`); toast('备注已保存'); render(); };
+  return fn;
+}
+function delLink(id){ const l=links.find(x=>x.id===id);
+  if(l.items.length){ toast('仅可删除不包含广告的链接'); return; }
+  if(!confirm(`确认删除链接 ${l.name}？`)) return;
+  links.splice(links.indexOf(l),1); addLog('链接管理',`删除链接 ${l.name}`); toast('链接已删除'); render(); }
+
+/* --- new link form + stat picker --- */
+let nl = {name:'', desc:'', statIds:[]};
+function newLinkForm(){
+  const chosen = nl.statIds.map(id=>esc(stats.find(s=>s.id===id)?.name)).join('、');
+  return `<div class="card" style="margin-bottom:18px"><div class="card-head"><h3>新建链接</h3></div>
+  <div class="form">
+    <div class="fld"><label>名称</label><input id="nl-name" value="${esc(nl.name)}" placeholder="如 11-02-03" oninput="nl.name=this.value"></div>
+    <div class="fld"><label>选择统计 <span class="hint">（非必选 · 可多选）</span></label>
+      <div class="pick ${nl.statIds.length?'has':''}" onclick="openStatPicker()">
+        <span>${chosen||'从统计管理中选择…'}</span><span>▾</span></div></div>
+    <div class="fld full"><label>描述</label><input value="${esc(nl.desc)}" placeholder="如 android-天气" oninput="nl.desc=this.value"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="nl={name:'',desc:'',statIds:[]};route.showForm=false;render()">取消</button>
+      <button class="btn btn-teal" onclick="submitLink()">提交</button></div>
+  </div></div>`;
+}
+function submitLink(){
+  const name=nl.name.trim();
+  if(!name){ toast('请输入链接名称'); return; }
+  if(links.some(l=>l.name===name)){ toast('已存在同名链接，请更换名称'); return; }
+  const id=uid('l');
+  links.push({id, name, desc:nl.desc.trim(), note:'', status:true,
+    url:'http://p-pro.yaybyc.cn/main/link/'+Math.random().toString(36).slice(2,10), statIds:[...nl.statIds], items:[]});
+  addLog('链接管理',`新建链接 ${nl.name}${nl.statIds.length?'（绑定统计 '+nl.statIds.length+' 个）':''}`);
+  nl={name:'',desc:'',statIds:[]}; route.showForm=false; toast('链接已创建'); render();
+}
+let pickTmp=[];
+function openStatPicker(){
+  pickTmp=[...nl.statIds];
+  modal(`选择统计（可多选）`, `
+    <div id="statlist">${stats.map(s=>`
+      <div class="statrow ${pickTmp.includes(s.id)?'sel':''}" onclick="togglePick('${s.id}')">
+        <span class="chk"></span><b>${esc(s.name)}</b><span class="d">${esc(s.desc)}</span></div>`).join('')}
+      ${stats.length? '' : '<div class="empty"><b>暂无统计</b>请先在「统计管理」中创建</div>'}
+    </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
+     <button class="btn btn-teal" onclick="nl.statIds=[...pickTmp];closeModal();render()">提交</button>`);
+}
+function togglePick(id){
+  pickTmp.includes(id)? pickTmp.splice(pickTmp.indexOf(id),1) : pickTmp.push(id);
+  document.querySelectorAll('#statlist .statrow').forEach((el,i)=>
+    el.classList.toggle('sel', pickTmp.includes(stats[i].id)));
+}
+
+/* ================= Page: Link edit (detail) ================= */
+function pageLinkEdit(id){
+  const l=links.find(x=>x.id===id);
+  return `
+  <div class="pagehead">
+    <div><h1>链接编辑</h1><div class="crumb"><span class="linkish" onclick="go('links')">链接管理</span> / ${esc(l.name)}</div></div>
+    <div class="toolbar"><button class="btn btn-ghost" onclick="go('links')">← 返回列表</button></div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="lt"><h3>${esc(l.name)}</h3><span>${esc(l.desc)}</span><span class="tag tag-v">${esc(l.note)||'无备注'}</span></div>
+      <button class="btn btn-violet btn-sm" onclick="openTransfer('${l.id}')">编辑广告单内广告</button>
+    </div>
+    ${l.items.length? `<table>
+      <thead><tr><th class="c" style="width:50px">序列</th><th>名称 <span class="hint">不可修改</span></th>
+      <th>链接 <span class="hint">不可修改</span></th>
+      <th class="num">权重</th><th class="num">量级</th><th>备注</th><th class="c">状态</th><th class="c">编辑</th></tr></thead>
+      <tbody>${l.items.map((it,i)=>{const a=ad(it.adId);
+        const wfn=mkItemSaver(l.id,it.adId,'weight'), lfn=mkItemSaver(l.id,it.adId,'limit'), nfn=mkItemSaver(l.id,it.adId,'note');
+        return `<tr>
+        <td class="c">${i+1}</td><td><b>${esc(a.name)}</b></td><td class="mono">${esc(a.url)}</td>
+        <td class="num">${ie(it.weight,wfn,1)}</td>
+        <td class="num">${ie(fmt(it.limit),lfn,1)}</td>
+        <td>${ie(esc(it.note),nfn)}</td>
+        <td class="c">${tg(it.status,`toggleItem('${l.id}','${it.adId}')`)}</td>
+        <td class="c"><button class="btn btn-danger-soft" onclick="removeItem('${l.id}','${it.adId}')">删除</button></td>
+      </tr>`;}).join('')}</tbody></table>
+      <div style="padding:10px 18px;color:var(--faint);font-size:12px">提示：权重、量级与备注支持点击后直接编辑，回车即可确认生效。</div>`
+    : `<div class="empty"><b>此广告单暂无广告</b>点击右上角「编辑广告单内广告」添加</div>`}
+  </div>`;
+}
+function mkItemSaver(linkId,adId,field){
+  const fn=`svi_${linkId}_${adId}_${field}`;
+  window[fn]=(v,old)=>{
+    const it=links.find(l=>l.id===linkId).items.find(i=>i.adId===adId);
+    if(field!=='note'){ const n=parseInt(v.replace(/[^\d]/g,''),10);
+      if(isNaN(n)){ toast('请输入数字'); render(); return; } it[field]=n; }
+    else it.note=v;
+    addLog('链接管理',`修改广告 ${ad(adId).name} ${ {weight:'权重',limit:'量级',note:'备注'}[field] } ${old} → ${v}`);
+    toast('已保存'); render(); };
+  return fn;
+}
+function removeItem(linkId,adId){
+  const l=links.find(x=>x.id===linkId);
+  if(!confirm(`将广告 ${ad(adId).name} 移出此广告单？`)) return;
+  l.items=l.items.filter(i=>i.adId!==adId);
+  addLog('链接管理',`从链接 ${l.name} 移除广告 ${ad(adId).name}`); render();
+}
+
+/* --- transfer modal (in-list <-> available) --- */
+let tf={linkId:null, inSel:[], outSel:[], inIds:[]};
+function openTransfer(linkId){
+  const l=links.find(x=>x.id===linkId);
+  tf={linkId, inSel:[], outSel:[], inIds:l.items.map(i=>i.adId)};
+  renderTransfer();
+}
+function renderTransfer(){
+  const inAds = tf.inIds.map(id=>ad(id));
+  const outAds = ads.filter(a=>!tf.inIds.includes(a.id));
+  modal('广告单内广告编辑', `
+   <div class="transfer">
+     <div class="tcol"><h4>广告单内 · <b>${inAds.length}</b> 条</h4>
+       <ul>${inAds.map(a=>`<li class="${tf.inSel.includes(a.id)?'sel':''}" onclick="tfSel('in','${a.id}')">
+         <span class="chk"></span><b>${esc(a.name)}</b><span class="d">${esc(a.desc)}</span></li>`).join('')||'<div class="empty">暂无广告</div>'}</ul></div>
+     <div class="tmid">
+       <button class="to-out" title="移出广告单" ${tf.inSel.length?'':'disabled'} onclick="tfMove('out')">→</button>
+       <button class="to-in" title="加入广告单" ${tf.outSel.length?'':'disabled'} onclick="tfMove('in')">←</button>
+     </div>
+     <div class="tcol"><h4>可选广告 · <b>${outAds.length}</b> 条</h4>
+       <ul>${outAds.map(a=>`<li class="${tf.outSel.includes(a.id)?'sel':''}" onclick="tfSel('out','${a.id}')">
+         <span class="chk"></span><b>${esc(a.name)}</b><span class="d">${esc(a.desc)}</span></li>`).join('')||'<div class="empty">无可选广告</div>'}</ul></div>
+   </div>`,
+   `<button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    <button class="btn btn-teal" onclick="tfSubmit()">提交</button>`, true);
+}
+function tfSel(side,id){ const arr= side==='in'?tf.inSel:tf.outSel;
+  arr.includes(id)?arr.splice(arr.indexOf(id),1):arr.push(id); renderTransfer(); }
+function tfMove(dir){
+  if(dir==='out'){ tf.inIds=tf.inIds.filter(id=>!tf.inSel.includes(id)); tf.inSel=[]; }
+  else { tf.inIds.push(...tf.outSel); tf.outSel=[]; }
+  renderTransfer();
+}
+function tfSubmit(){
+  const l=links.find(x=>x.id===tf.linkId);
+  const before=l.items.map(i=>i.adId);
+  l.items = tf.inIds.map(id=>{
+    const ex=l.items.find(i=>i.adId===id);
+    return ex || {adId:id, weight:50, limit:50000, today:0, yesterday:0, status:true, note:ad(id).desc};
+  });
+  const added=tf.inIds.filter(x=>!before.includes(x)).length, removed=before.filter(x=>!tf.inIds.includes(x)).length;
+  addLog('链接管理',`编辑链接 ${l.name} 广告组成：+${added} / −${removed}`);
+  closeModal(); toast('广告单已更新'); render();
+}
+
+/* ================= Page: Ads ================= */
+let adSearch='', adForm=false, na={name:'',url:'',desc:''};
+function pageAds(){
+  const list=ads.filter(a=>!adSearch||a.name.includes(adSearch)||a.url.includes(adSearch)||a.desc.includes(adSearch));
+  const filtered = route.filterAd? links.filter(l=>l.items.some(i=>i.adId===route.filterAd)) : null;
+  return `
+  <div class="pagehead">
+    <div><h1>广告管理</h1><div class="crumb">广告的创建、上下线与投放查询</div></div>
+    <div class="toolbar">
+      <div class="search"><input data-keep="ad-search" placeholder="名称 / 链接 / 描述" value="${esc(adSearch)}" oninput="adSearch=this.value;render()"></div>
+      <button class="btn btn-violet" onclick="adForm=!adForm;render()">＋ 新建广告</button>
+    </div>
+  </div>
+  ${adForm? `<div class="card" style="margin-bottom:18px"><div class="card-head"><h3>新建广告</h3></div>
+    <div class="form">
+      <div class="fld"><label>名称</label><input value="${esc(na.name)}" placeholder="如 sm-252" oninput="na.name=this.value"></div>
+      <div class="fld"><label>投放链接</label><input value="${esc(na.url)}" placeholder="https://…" oninput="na.url=this.value"></div>
+      <div class="fld full"><label>描述</label><input value="${esc(na.desc)}" placeholder="如 sly-0601上线" oninput="na.desc=this.value"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="adForm=false;na={name:'',url:'',desc:''};render()">取消</button>
+        <button class="btn btn-teal" onclick="submitAd()">提交</button></div>
+    </div></div>`:''}
+  ${route.filterAd? `<div class="note-banner">正在查看包含广告 <b>${esc(ad(route.filterAd).name)}</b> 的广告单（${filtered.length} 条）
+     ${filtered.map(l=>`<span class="linkish" style="margin-left:10px" onclick="go('links',{linkId:'${l.id}'})">${esc(l.name)}</span>`).join('')}
+     <button class="btn btn-ghost btn-sm" style="margin-left:12px" onclick="route.filterAd=null;render()">清除筛选</button></div>`:''}
+  <div class="card"><table>
+    <thead><tr><th class="c" style="width:50px">序列</th><th>名称</th><th>链接</th><th>描述</th>
+    <th class="c">广告单数</th><th class="c">状态</th><th class="c">编辑</th></tr></thead>
+    <tbody>${list.map((a,i)=>{const n=usedIn(a.id);return `<tr>
+      <td class="c">${i+1}</td><td><b>${esc(a.name)}</b></td><td class="mono">${esc(a.url)}</td><td>${esc(a.desc)}</td>
+      <td class="c"><span class="count-chip ${n?'':'zero'}" title="点击查看包含此广告的广告单"
+        onclick="route.filterAd='${a.id}';render()">${n}</span></td>
+      <td class="c">${tg(a.status,`toggleAd('${a.id}')`)}</td>
+      <td class="c"><button class="btn btn-danger-soft" ${n?'disabled title="该广告仍在广告单内，先移出后才可删除"':''} onclick="delAd('${a.id}')">删除</button></td>
+    </tr>`;}).join('')}</tbody>
+  </table></div>`;
+}
+function submitAd(){
+  const name=na.name.trim(), url=na.url.trim();
+  if(!name||!url){ toast('请填写名称与投放链接'); return; }
+  if(!/^https?:\/\/.+/.test(url)){ toast('投放链接需以 http:// 或 https:// 开头'); return; }
+  if(ads.some(a=>a.name===name)){ toast('已存在同名广告，请更换名称'); return; }
+  ads.push({id:uid('a'), name, url, desc:na.desc.trim(), status:true});
+  addLog('广告管理',`新建广告 ${name}`); na={name:'',url:'',desc:''}; adForm=false; toast('广告已创建'); render();
+}
+function delAd(id){ const a=ad(id);
+  if(usedIn(id)){ toast('该广告仍被广告单使用，无法删除'); return; }
+  if(!confirm(`确认删除广告 ${a.name}？`)) return;
+  ads.splice(ads.indexOf(a),1); addLog('广告管理',`删除广告 ${a.name}`); toast('广告已删除'); render(); }
+
+/* ================= Page: Stats ================= */
+let stSearch='', stForm={id:null,name:'',desc:'',code:''};
+function pageStats(){
+  const list=stats.filter(s=>!stSearch||s.name.includes(stSearch)||s.desc.includes(stSearch));
+  const filtered = route.filterStat? links.filter(l=>l.statIds.includes(route.filterStat)) : null;
+  return `
+  <div class="pagehead">
+    <div><h1>统计管理</h1><div class="crumb">第三方统计代码的创建与绑定</div></div>
+    <div class="toolbar"><div class="search"><input data-keep="st-search" placeholder="名称 / 描述" value="${esc(stSearch)}" oninput="stSearch=this.value;render()"></div></div>
+  </div>
+  ${route.filterStat? `<div class="note-banner">正在查看使用统计 <b>${esc(stats.find(s=>s.id===route.filterStat).name)}</b> 的广告单（${filtered.length} 条）
+     ${filtered.map(l=>`<span class="linkish" style="margin-left:10px" onclick="go('links',{linkId:'${l.id}'})">${esc(l.name)}</span>`).join('')}
+     <button class="btn btn-ghost btn-sm" style="margin-left:12px" onclick="route.filterStat=null;render()">清除筛选</button></div>`:''}
+  <div class="split">
+    <div class="card"><table>
+      <thead><tr><th class="c" style="width:50px">序列</th><th>名称</th><th>描述</th><th class="c">链接</th><th class="c">编辑</th></tr></thead>
+      <tbody>${list.map((s,i)=>{const n=statUsed(s.id);return `<tr>
+        <td class="c">${i+1}</td>
+        <td><span class="linkish" title="点击在右侧编辑" onclick="editStat('${s.id}')">${esc(s.name)}</span></td>
+        <td>${esc(s.desc)}</td>
+        <td class="c"><span class="count-chip ${n?'':'zero'}" title="点击查看使用此统计的广告单"
+          onclick="route.filterStat='${s.id}';render()">${n}</span></td>
+        <td class="c"><button class="btn btn-danger-soft" ${n?'disabled title="仅可删除未被使用的统计"':''} onclick="delStat('${s.id}')">删除</button></td>
+      </tr>`;}).join('')}</tbody>
+    </table></div>
+    <div class="card">
+      <div class="card-head"><h3>${stForm.id?'编辑统计 · '+esc(stForm.name):'新建统计'}</h3>
+        ${stForm.id?`<button class="btn btn-ghost btn-sm" onclick="stForm={id:null,name:'',desc:'',code:''};render()">改为新建</button>`:''}</div>
+      <div class="form" style="grid-template-columns:1fr">
+        <div class="fld"><label>名称</label><input value="${esc(stForm.name)}" oninput="stForm.name=this.value" placeholder="如 11-02-03"></div>
+        <div class="fld"><label>描述</label><input value="${esc(stForm.desc)}" oninput="stForm.desc=this.value" placeholder="如 51la_v6"></div>
+        <div class="fld"><label>统计代码 <span class="hint">贴入第三方统计代码，提交即可生效</span></label>
+          <textarea oninput="stForm.code=this.value" placeholder="<script src=&quot;//js.users.51.la/…&quot;>…">${esc(stForm.code)}</textarea></div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="stForm={id:null,name:'',desc:'',code:''};render()">取消</button>
+          <button class="btn btn-teal" onclick="submitStat()">提交</button></div>
+      </div>
+    </div>
+  </div>`;
+}
+function editStat(id){ const s=stats.find(x=>x.id===id); stForm={id:s.id,name:s.name,desc:s.desc,code:s.code}; render(); }
+function submitStat(){
+  const name=stForm.name.trim();
+  if(!name){ toast('请输入统计名称'); return; }
+  if(stats.some(s=>s.name===name && s.id!==stForm.id)){ toast('已存在同名统计，请更换名称'); return; }
+  if(stForm.id){ const s=stats.find(x=>x.id===stForm.id); Object.assign(s,{name,desc:stForm.desc,code:stForm.code});
+    addLog('统计管理',`编辑统计 ${s.name}`); toast('统计已更新'); }
+  else { stats.push({id:uid('st'), name:stForm.name.trim(), desc:stForm.desc.trim(), code:stForm.code});
+    addLog('统计管理',`新建统计 ${stForm.name}`); toast('统计已创建'); }
+  stForm={id:null,name:'',desc:'',code:''}; render();
+}
+function delStat(id){ const s=stats.find(x=>x.id===id);
+  if(statUsed(id)){ toast('该统计仍被广告单使用，无法删除'); return; }
+  if(!confirm(`确认删除统计 ${s.name}？`)) return;
+  stats.splice(stats.indexOf(s),1); addLog('统计管理',`删除统计 ${s.name}`); toast('统计已删除'); render(); }
+
+/* ================= Page: Logs ================= */
+function pageLogs(){
+  return `
+  <div class="pagehead">
+    <div><h1>操作日志</h1><div class="crumb">记录所有写操作，便于审计回溯 · 共 ${logs.length} 条</div></div>
+    <div class="toolbar">
+      <button class="btn btn-ghost" ${logs.length?'':'disabled'} onclick="exportLogs()">导出 CSV</button>
+      <button class="btn btn-ghost" ${logs.length?'':'disabled'} onclick="clearLogs()">清空日志</button>
+      <button class="btn btn-danger-soft" style="padding:7px 14px;font-size:13px" onclick="resetData()">重置演示数据</button>
+    </div>
+  </div>
+  ${logs.length? `<div class="card"><table>
+    <thead><tr><th style="width:170px">时间</th><th style="width:90px">操作人</th><th style="width:110px">模块</th><th>操作内容</th></tr></thead>
+    <tbody>${logs.map(g=>`<tr>
+      <td class="mono">${g.t}</td><td><b>${esc(g.u)}</b></td><td><span class="tag tag-v">${esc(g.m)}</span></td><td>${esc(g.a)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`
+  : `<div class="card"><div class="empty"><b>暂无日志</b>对链接、广告或统计进行修改后将自动记录</div></div>`}`;
+}
+function exportLogs(){
+  const csv = '﻿时间,操作人,模块,操作内容\n' +
+    logs.map(g=>[g.t,g.u,g.m,g.a].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = `操作日志_${todayStr()}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('日志已导出');
+}
+
+/* ================= Modal ================= */
+function modal(title, body, foot, wide){
+  document.getElementById('modal-root').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal ${wide?'wide':''}" role="dialog" aria-modal="true">
+      <div class="modal-head">${title}<button onclick="closeModal()" aria-label="关闭">✕</button></div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-foot">${foot}</div>
+    </div></div>`;
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tms_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-tms}
+    ports:
+      # host:container — host side is 5433 to avoid clashing with a local Postgres on 5432
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tms}:${POSTGRES_PASSWORD:-tms_pass}@postgres:5432/${POSTGRES_DB:-tms}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900s}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      PUBLIC_LINK_DOMAIN: ${PUBLIC_LINK_DOMAIN:-http://localhost:3000}
+      TRAFFIC_SYNC_INTERVAL_SEC: ${TRAFFIC_SYNC_INTERVAL_SEC:-60}
+      LINK_CACHE_TTL_SEC: ${LINK_CACHE_TTL_SEC:-30}
+    ports:
+      - "3000:3000"
+    # On boot: apply migrations, seed (idempotent), then start
+    command: sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # served behind nginx which proxies /api and /main to the api service
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  pgdata:
