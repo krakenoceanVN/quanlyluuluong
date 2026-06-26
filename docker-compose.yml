@@ -66,7 +66,8 @@ services:
     depends_on:
       - api
     ports:
-      - "5173:80"
+      # host 5174 (5173 đã bị dự án khác dùng) → nginx :80 trong container
+      - "5174:80"
 
 volumes:
   pgdata:

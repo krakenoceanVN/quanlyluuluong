@@ -34,7 +34,7 @@ cp .env.example .env          # chỉnh secret nếu cần
 docker compose up --build
 ```
 
-- Web:    http://localhost:5173  (đăng nhập `admin` / `admin123`)
+- Web:    http://localhost:5174  (đăng nhập `admin` / `admin123`)
 - API:    http://localhost:3000/api/v1
 - Engine: http://localhost:3000/main/link/o702jib0  (link mẫu từ seed)
 
@@ -64,10 +64,10 @@ npm run prisma:seed    -w apps/api      # admin/admin123 + dữ liệu mẫu (id
 npm run dev -w apps/api                  # http://localhost:3000  (NestJS watch mode)
 
 # 5) Chạy Web (terminal 2)
-npm run dev -w apps/web                  # http://localhost:5173  (Vite, proxy /api & /main → 3000)
+npm run dev -w apps/web                  # http://localhost:5174  (Vite, proxy /api & /main → 3000)
 ```
 
-Mở http://localhost:5173, đăng nhập **admin / admin123**.
+Mở http://localhost:5174, đăng nhập **admin / admin123**.
 
 > **Lưu ý cổng Postgres**: nếu máy đã có PostgreSQL cục bộ chiếm cổng 5432, Docker map sang **5433**
 > (xem `docker-compose.yml`) và `.env` mẫu đã trỏ `DATABASE_URL=...localhost:5433`. Nếu bạn dùng

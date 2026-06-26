@@ -8,6 +8,7 @@ import EditableText from '../components/EditableText';
 import {
   createLink,
   deleteLink,
+  getLink,
   listLinks,
   listTrackers,
   setLinkStatus,
@@ -26,12 +27,35 @@ export default function LinksPage() {
   const [keyword, setKeyword] = useState('');
   const deb = useDebounce(keyword);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   const { data, isFetching } = useQuery({
     queryKey: ['links', page, pageSize, deb],
     queryFn: () => listLinks({ page, pageSize, keyword: deb || undefined }),
   });
+
+  const openCreate = () => {
+    setEditingId(null);
+    form.resetFields();
+    setShowForm(true);
+  };
+  const openEdit = async (row: LinkRow) => {
+    setEditingId(row.id);
+    setShowForm(true);
+    form.resetFields();
+    try {
+      const detail = await getLink(row.id); // cần trackerIds hiện tại để prefill
+      form.setFieldsValue({
+        name: detail.name,
+        description: detail.description,
+        note: detail.note,
+        trackerIds: detail.trackers.map((t) => t.id),
+      });
+    } catch (e) {
+      message.error(e instanceof ApiError ? e.message : '加载失败');
+    }
+  };
 
   const trackerOpts = useQuery({
     queryKey: ['trackers-all'],
@@ -41,15 +65,24 @@ export default function LinksPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['links'] });
 
-  const create = useMutation({
-    mutationFn: createLink,
+  const save = useMutation({
+    mutationFn: (v: { name: string; shortCode?: string; description?: string; note?: string; trackerIds?: string[] }) =>
+      editingId
+        ? updateLink(editingId, {
+            name: v.name,
+            description: v.description,
+            note: v.note,
+            trackerIds: v.trackerIds ?? [],
+          })
+        : createLink(v),
     onSuccess: () => {
-      message.success('链接已创建');
+      message.success(editingId ? '链接已更新' : '链接已创建');
       setShowForm(false);
+      setEditingId(null);
       form.resetFields();
       invalidate();
     },
-    onError: (e) => message.error(e instanceof ApiError ? e.message : '创建失败'),
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败'),
   });
 
   const toggle = useMutation({
@@ -121,18 +154,23 @@ export default function LinksPage() {
     },
     {
       title: '编辑',
-      width: 90,
+      width: 150,
       align: 'center' as const,
       render: (_: unknown, r: LinkRow) => (
-        <Popconfirm
-          title={`确认删除链接 ${r.name}？`}
-          disabled={r.adCount > 0}
-          onConfirm={() => remove.mutate(r.id)}
-        >
-          <Button danger size="small" disabled={r.adCount > 0} title={r.adCount > 0 ? '仅可删除不包含广告的链接' : ''}>
-            删除
+        <Space size={6}>
+          <Button size="small" onClick={() => openEdit(r)}>
+            修改
           </Button>
-        </Popconfirm>
+          <Popconfirm
+            title={`确认删除链接 ${r.name}？`}
+            disabled={r.adCount > 0}
+            onConfirm={() => remove.mutate(r.id)}
+          >
+            <Button danger size="small" disabled={r.adCount > 0} title={r.adCount > 0 ? '仅可删除不包含广告的链接' : ''}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -154,7 +192,7 @@ export default function LinksPage() {
               }}
               style={{ width: 240 }}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowForm(true)}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               新建链接
             </Button>
           </Space>
@@ -181,34 +219,39 @@ export default function LinksPage() {
       </Card>
 
       <Modal
-        title="新建链接"
+        title={editingId ? '编辑链接' : '新建链接'}
         open={showForm}
-        onCancel={() => setShowForm(false)}
+        onCancel={() => {
+          setShowForm(false);
+          setEditingId(null);
+        }}
         onOk={() => form.submit()}
         okText="提交"
         cancelText="取消"
-        confirmLoading={create.isPending}
+        confirmLoading={save.isPending}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" onFinish={(v) => create.mutate(v)} style={{ marginTop: 12 }}>
+        <Form form={form} layout="vertical" onFinish={(v) => save.mutate(v)} style={{ marginTop: 12 }}>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入链接名称' }]}>
             <Input placeholder="如 11-02-03" />
           </Form.Item>
-          <Form.Item
-            name="shortCode"
-            label="链接地址（URL 后缀 · 可选，留空自动生成）"
-            normalize={(v?: string) => v?.trim().toLowerCase()}
-            rules={[
-              {
-                pattern: /^[a-z0-9-]{3,40}$/,
-                message: '仅可包含小写字母、数字、连字符，长度 3-40',
-              },
-            ]}
-            extra="完整地址为 域名 + /main/link/ + 此后缀，将同步显示在首页与数据查询"
-          >
-            <Input addonBefore=".../main/link/" placeholder="如 weather-vn" />
-          </Form.Item>
-          <Form.Item name="trackerIds" label="选择统计（非必选 · 可多选）">
+          {!editingId && (
+            <Form.Item
+              name="shortCode"
+              label="链接地址（URL 后缀 · 可选，留空自动生成）"
+              normalize={(v?: string) => v?.trim().toLowerCase()}
+              rules={[
+                {
+                  pattern: /^[a-z0-9-]{3,40}$/,
+                  message: '仅可包含小写字母、数字、连字符，长度 3-40',
+                },
+              ]}
+              extra="完整地址为 域名 + /main/link/ + 此后缀，将同步显示在首页与数据查询"
+            >
+              <Input addonBefore=".../main/link/" placeholder="如 weather-vn" />
+            </Form.Item>
+          )}
+          <Form.Item name="trackerIds" label="选择统计（非必选 · 可多选 · 可重新选择）">
             <Select
               mode="multiple"
               allowClear
@@ -223,6 +266,11 @@ export default function LinksPage() {
           <Form.Item name="description" label="描述">
             <Input placeholder="如 android-天气" />
           </Form.Item>
+          {editingId && (
+            <Form.Item name="note" label="备注">
+              <Input placeholder="如 1000-541-238" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </>
