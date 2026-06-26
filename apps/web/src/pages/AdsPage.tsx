@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Card, Form, Input, List, Modal, Popconfirm, Space, Switch, Table, Tag } from 'antd';
+import { App, Button, Card, Form, Input, List, Modal, Popconfirm, Space, Switch, Table, Tag, type TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -74,9 +74,15 @@ export default function AdsPage() {
     onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败'),
   });
 
-  const columns = [
-    { title: '序列', width: 60, align: 'center' as const, render: (_: unknown, __: Ad, i: number) => (page - 1) * pageSize + i + 1 },
-    { title: '名称', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
+  const columns: TableColumnsType<Ad> = [
+    { title: '序列', width: 60, align: 'center', render: (_: unknown, __: Ad, i: number) => (page - 1) * pageSize + i + 1 },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      sorter: (a: Ad, b: Ad) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      sortDirections: ['ascend', 'descend'],
+      render: (v: string) => <b>{v}</b>,
+    },
     { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
     { title: '描述', dataIndex: 'description' },
     {

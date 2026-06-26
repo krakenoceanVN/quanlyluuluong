@@ -25,7 +25,7 @@ export default function HomePage() {
       updateLinkAd(v.linkId, v.adId, { status: v.status }),
     onSuccess: () => {
       message.success('状态已更新');
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries(); // đồng bộ mọi trang cho cùng một quảng cáo
     },
     onError: () => message.error('更新失败'),
   });

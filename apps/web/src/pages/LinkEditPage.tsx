@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { App, Button, Card, Empty, Popconfirm, Space, Switch, Table, Tag, Transfer } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { App, Button, Card, Empty, Popconfirm, Space, Switch, Table, Tag, Transfer, Typography } from 'antd';
+import { ArrowLeftOutlined, SortAscendingOutlined, SortDescendingOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
@@ -17,6 +17,7 @@ export default function LinkEditPage() {
   const { message } = App.useApp();
   const [transferOpen, setTransferOpen] = useState(false);
   const [targetKeys, setTargetKeys] = useState<string[]>([]);
+  const [sortAsc, setSortAsc] = useState(true);
 
   const { data: link, isFetching } = useQuery({
     queryKey: ['link', id],
@@ -31,8 +32,8 @@ export default function LinkEditPage() {
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['link', id] });
-    qc.invalidateQueries({ queryKey: ['links'] });
+    // làm mới mọi trang liên quan (首页/数据查询/链接管理) để ghi chú & trạng thái đồng bộ
+    qc.invalidateQueries();
   };
 
   const patch = useMutation({
@@ -142,14 +143,29 @@ export default function LinkEditPage() {
       <Card
         loading={isFetching}
         title={
-          <Space wrap>
-            <span>{link?.name}</span>
-            <span style={{ color: '#8a91a5', fontWeight: 400 }}>{link?.description}</span>
-            <Tag color="purple">{link?.note || '无备注'}</Tag>
-            {link?.trackers.map((t) => (
-              <Tag key={t.id}>{t.name}</Tag>
-            ))}
-          </Space>
+          <div style={{ whiteSpace: 'normal' }}>
+            <Space wrap size={8}>
+              <span>{link?.name}</span>
+              <span style={{ color: '#8a91a5', fontWeight: 400 }}>{link?.description}</span>
+              <Tag color="purple">{link?.note || '无备注'}</Tag>
+              {link?.trackers.map((t) => (
+                <Tag key={t.id}>{t.name}</Tag>
+              ))}
+            </Space>
+            {link?.url && (
+              <div style={{ marginTop: 6, fontWeight: 400 }}>
+                <Typography.Text
+                  className="url-text"
+                  copyable={{ text: link.url }}
+                  style={{ wordBreak: 'break-all' }}
+                >
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    {link.url}
+                  </a>
+                </Typography.Text>
+              </div>
+            )}
+          </div>
         }
         extra={
           <Button type="primary" onClick={openTransfer}>
@@ -172,6 +188,12 @@ export default function LinkEditPage() {
       {transferOpen && (
         <Card style={{ marginTop: 18 }} title="广告单内广告编辑" extra={
           <Space>
+            <Button
+              icon={sortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
+              onClick={() => setSortAsc((v) => !v)}
+            >
+              名称 {sortAsc ? 'A→Z' : 'Z→A'}
+            </Button>
             <Button onClick={() => setTransferOpen(false)}>取消</Button>
             <Button type="primary" loading={replace.isPending} onClick={() => replace.mutate(targetKeys)}>
               提交
@@ -179,7 +201,10 @@ export default function LinkEditPage() {
           </Space>
         }>
           <Transfer
-            dataSource={(allAds.data?.items ?? []).map((a) => ({ key: a.id, title: a.name, description: a.description }))}
+            dataSource={(allAds.data?.items ?? [])
+              .slice()
+              .sort((a, b) => (sortAsc ? 1 : -1) * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+              .map((a) => ({ key: a.id, title: a.name, description: a.description }))}
             titles={['可选广告', '广告单内']}
             targetKeys={targetKeys}
             onChange={(keys) => setTargetKeys(keys as string[])}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag } from 'antd';
+import { App, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, type TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -109,11 +109,13 @@ export default function LinksPage() {
     onError: (e) => message.error(e instanceof ApiError ? e.message : '删除失败'),
   });
 
-  const columns = [
-    { title: '序列', width: 60, align: 'center' as const, render: (_: unknown, __: LinkRow, i: number) => (page - 1) * pageSize + i + 1 },
+  const columns: TableColumnsType<LinkRow> = [
+    { title: '序列', width: 60, align: 'center', render: (_: unknown, __: LinkRow, i: number) => (page - 1) * pageSize + i + 1 },
     {
       title: '名称',
       dataIndex: 'name',
+      sorter: (a: LinkRow, b: LinkRow) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      sortDirections: ['ascend', 'descend'],
       render: (v: string, r: LinkRow) => (
         <a onClick={() => nav(`/links/${r.id}`)} style={{ fontWeight: 600 }}>
           {v}
@@ -266,11 +268,9 @@ export default function LinksPage() {
           <Form.Item name="description" label="描述">
             <Input placeholder="如 android-天气" />
           </Form.Item>
-          {editingId && (
-            <Form.Item name="note" label="备注">
-              <Input placeholder="如 1000-541-238" />
-            </Form.Item>
-          )}
+          <Form.Item name="note" label="备注">
+            <Input placeholder="如 1000-541-238" />
+          </Form.Item>
         </Form>
       </Modal>
     </>

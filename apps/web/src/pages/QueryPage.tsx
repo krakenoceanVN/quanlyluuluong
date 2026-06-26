@@ -40,7 +40,7 @@ export default function QueryPage() {
       updateLinkAd(v.linkId, v.adId, v.body),
     onSuccess: () => {
       message.success('已保存');
-      qc.invalidateQueries({ queryKey: ['traffic'] });
+      qc.invalidateQueries(); // đồng bộ mọi trang (首页/数据查询/链接编辑) cho cùng một quảng cáo
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败'),
   });
