@@ -12,6 +12,9 @@ export default function EditableText({
   align = 'left',
   parse,
   display,
+  maxLength,
+  invalid = false,
+  placeholder,
 }: {
   value: string | number;
   onSave: (next: string) => void;
@@ -19,6 +22,9 @@ export default function EditableText({
   align?: 'left' | 'right';
   parse?: (raw: string) => string | null;
   display?: (v: string | number) => string;
+  maxLength?: number;
+  invalid?: boolean;
+  placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
@@ -46,7 +52,10 @@ export default function EditableText({
       <Input
         ref={ref}
         size="small"
+        status={invalid ? 'error' : undefined}
+        placeholder={placeholder}
         style={{ width, textAlign: align }}
+        maxLength={maxLength}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onPressEnter={commit}
@@ -66,13 +75,15 @@ export default function EditableText({
         cursor: 'text',
         padding: '2px 6px',
         borderRadius: 5,
-        borderBottom: '1px dashed #b7bccb',
+        border: invalid ? '1px solid #ff4d4f' : '1px solid transparent',
+        borderBottom: invalid ? '1px solid #ff4d4f' : '1px dashed #b7bccb',
+        background: invalid ? '#fff1f0' : undefined,
         display: 'inline-block',
         minWidth: 36,
         textAlign: align,
       }}
     >
-      {display ? display(value) : String(value) || <span style={{ color: '#b7bccb' }}>—</span>}
+      {(display ? display(value) : String(value)) || <span style={{ color: '#b7bccb' }}>—</span>}
     </span>
   );
 }

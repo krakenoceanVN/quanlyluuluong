@@ -76,7 +76,7 @@ describe('Traffic flow (e2e)', () => {
     const adId = ad.body.data.id;
 
     const put = await auth(request(app.getHttpServer()).put(`/api/v1/links/${linkId}/ads`)).send({
-      adIds: [adId],
+      items: [{ adId, weight: 50, dailyLimit: 50000 }],
     });
     expect(put.status).toBe(200);
     expect(put.body.data).toHaveLength(1);

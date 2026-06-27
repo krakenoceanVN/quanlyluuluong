@@ -63,7 +63,7 @@ export class ReportsService {
           dailyLimit: m.dailyLimit,
           today: todayMap.get(m.id) ?? 0,
           status: m.status,
-          note: m.note,
+          note: m.ad.description, // đồng bộ với 描述 (广告管理)
         }));
         return {
           id: l.id,
@@ -148,7 +148,7 @@ export class ReportsService {
           weight: m.weight,
           dailyLimit: m.dailyLimit,
           status: m.status,
-          note: m.note,
+          note: m.ad.description, // đồng bộ với 描述 (广告管理)
           total: totalByMember.get(m.id) ?? 0,
         })),
         series,

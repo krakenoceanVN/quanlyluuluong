@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { App, Button, Card, Empty, Popconfirm, Space, Switch, Table, Tag, Transfer, Typography } from 'antd';
 import { ArrowLeftOutlined, SortAscendingOutlined, SortDescendingOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import EditableText from '../components/EditableText';
-import { getLink, listAds, replaceLinkAds, updateLinkAd } from '../api/endpoints';
+import { getLink, listAds, replaceLinkAds } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { fmt } from '../hooks';
-import type { LinkAdRow } from '../types';
+
+/** Local draft row — weight/dailyLimit may be null (mới thêm, chưa nhập) → hiển thị "—". */
+interface DraftRow {
+  adId: string;
+  name: string;
+  targetUrl: string;
+  weight: number | null;
+  dailyLimit: number | null;
+  note: string; // = ad.description
+  status: boolean;
+}
 
 export default function LinkEditPage() {
   const { id = '' } = useParams();
@@ -18,6 +28,9 @@ export default function LinkEditPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [targetKeys, setTargetKeys] = useState<string[]>([]);
   const [sortAsc, setSortAsc] = useState(true);
+  const [rows, setRows] = useState<DraftRow[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const { data: link, isFetching } = useQuery({
     queryKey: ['link', id],
@@ -25,78 +38,151 @@ export default function LinkEditPage() {
     enabled: !!id,
   });
 
+  // nạp draft từ server khi chưa có thay đổi cục bộ (tránh ghi đè lúc đang sửa)
+  useEffect(() => {
+    if (link && !dirty) {
+      setRows(
+        link.ads.map((a) => ({
+          adId: a.adId,
+          name: a.name,
+          targetUrl: a.targetUrl,
+          weight: a.weight,
+          dailyLimit: a.dailyLimit,
+          note: a.note,
+          status: a.status,
+        })),
+      );
+    }
+  }, [link, dirty]);
+
   const allAds = useQuery({
     queryKey: ['ads-all'],
-    queryFn: () => listAds({ page: 1, pageSize: 500 }),
+    queryFn: () => listAds({ page: 1, pageSize: 1000 }),
     enabled: transferOpen,
   });
 
-  const invalidate = () => {
-    // làm mới mọi trang liên quan (首页/数据查询/链接管理) để ghi chú & trạng thái đồng bộ
-    qc.invalidateQueries();
-  };
-
-  const patch = useMutation({
-    mutationFn: (v: { adId: string; body: Partial<LinkAdRow> }) =>
-      updateLinkAd(id, v.adId, v.body),
+  const save = useMutation({
+    mutationFn: (items: DraftRow[]) =>
+      replaceLinkAds(
+        id,
+        items.map((r) => ({
+          adId: r.adId,
+          weight: r.weight as number,
+          dailyLimit: r.dailyLimit as number,
+          status: r.status,
+          note: r.note,
+        })),
+      ),
     onSuccess: () => {
-      message.success('已保存');
-      invalidate();
+      message.success('广告单已保存');
+      setDirty(false);
+      setAttempted(false);
+      qc.invalidateQueries();
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败'),
   });
 
-  const replace = useMutation({
-    mutationFn: (adIds: string[]) => replaceLinkAds(id, adIds),
-    onSuccess: () => {
-      message.success('广告单已更新');
-      setTransferOpen(false);
-      invalidate();
-    },
-    onError: (e) => message.error(e instanceof ApiError ? e.message : '更新失败'),
-  });
+  const updateRow = (adId: string, patch: Partial<DraftRow>) => {
+    setRows((rs) => rs.map((r) => (r.adId === adId ? { ...r, ...patch } : r)));
+    setDirty(true);
+  };
+  const removeRow = (adId: string) => {
+    setRows((rs) => rs.filter((r) => r.adId !== adId));
+    setDirty(true);
+  };
 
   const openTransfer = () => {
-    setTargetKeys((link?.ads ?? []).map((a) => a.adId));
+    setTargetKeys(rows.map((r) => r.adId));
     setTransferOpen(true);
+  };
+  const applyTransfer = () => {
+    const adMap = new Map((allAds.data?.items ?? []).map((a) => [a.id, a]));
+    const next: DraftRow[] = targetKeys.map((adId) => {
+      const existing = rows.find((r) => r.adId === adId);
+      if (existing) return existing; // giữ nguyên dòng cũ
+      const ad = adMap.get(adId);
+      // dòng mới: weight/量级 để TRỐNG (null), không auto-fill
+      return {
+        adId,
+        name: ad?.name ?? adId,
+        targetUrl: ad?.targetUrl ?? '',
+        weight: null,
+        dailyLimit: null,
+        note: ad?.description ?? '',
+        status: true,
+      };
+    });
+    setRows(next);
+    setDirty(true);
+    setTransferOpen(false);
   };
 
   const numParse = (raw: string): string | null => {
     const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
-    if (isNaN(n)) {
-      message.error('请输入数字');
+    if (isNaN(n) || n <= 0) {
+      message.error('请输入大于 0 的整数');
       return null;
     }
     return String(n);
   };
 
+  const isWeightBad = (r: DraftRow) => !(typeof r.weight === 'number' && r.weight > 0);
+  const isLimitBad = (r: DraftRow) => !(typeof r.dailyLimit === 'number' && r.dailyLimit > 0);
+
+  const onSubmit = () => {
+    setAttempted(true);
+    const bad = rows.filter((r) => isWeightBad(r) || isLimitBad(r));
+    if (bad.length) {
+      message.error('请为所有广告填写「权重」与「量级」（大于 0 的整数）后再提交');
+      return;
+    }
+    save.mutate(rows);
+  };
+
   const columns = [
-    { title: '序列', width: 60, align: 'center' as const, render: (_: unknown, __: LinkAdRow, i: number) => i + 1 },
+    { title: '序列', width: 60, align: 'center' as const, render: (_: unknown, __: DraftRow, i: number) => i + 1 },
     { title: '名称（不可修改）', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
     { title: '链接（不可修改）', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
     {
       title: '权重',
       dataIndex: 'weight',
-      width: 90,
+      width: 110,
       align: 'right' as const,
-      render: (v: number, r: LinkAdRow) => (
-        <EditableText value={v} width={70} align="right" parse={numParse} onSave={(w) => patch.mutate({ adId: r.adId, body: { weight: Number(w) } })} />
+      render: (v: number | null, r: DraftRow) => (
+        <EditableText
+          value={v ?? ''}
+          width={80}
+          align="right"
+          placeholder="必填"
+          parse={numParse}
+          invalid={attempted && isWeightBad(r)}
+          onSave={(w) => updateRow(r.adId, { weight: Number(w) })}
+        />
       ),
     },
     {
       title: '量级',
       dataIndex: 'dailyLimit',
-      width: 120,
+      width: 130,
       align: 'right' as const,
-      render: (v: number, r: LinkAdRow) => (
-        <EditableText value={v} width={90} align="right" parse={numParse} display={(x) => fmt(Number(x))} onSave={(l) => patch.mutate({ adId: r.adId, body: { dailyLimit: Number(l) } })} />
+      render: (v: number | null, r: DraftRow) => (
+        <EditableText
+          value={v ?? ''}
+          width={100}
+          align="right"
+          placeholder="必填"
+          parse={numParse}
+          display={(x) => (x === '' || x == null ? '' : fmt(Number(x)))} // trống → EditableText hiện "—"
+          invalid={attempted && isLimitBad(r)}
+          onSave={(l) => updateRow(r.adId, { dailyLimit: Number(l) })}
+        />
       ),
     },
     {
-      title: '备注',
+      title: '备注（= 广告描述 · 跨链接同步）',
       dataIndex: 'note',
-      render: (v: string, r: LinkAdRow) => (
-        <EditableText value={v} width={160} onSave={(note) => patch.mutate({ adId: r.adId, body: { note } })} />
+      render: (v: string, r: DraftRow) => (
+        <EditableText value={v} width={180} maxLength={200} onSave={(note) => updateRow(r.adId, { note })} />
       ),
     },
     {
@@ -104,21 +190,18 @@ export default function LinkEditPage() {
       dataIndex: 'status',
       width: 80,
       align: 'center' as const,
-      render: (v: boolean, r: LinkAdRow) => (
-        <Switch size="small" checked={v} onChange={(c) => patch.mutate({ adId: r.adId, body: { status: c } })} />
+      render: (v: boolean, r: DraftRow) => (
+        <Switch size="small" checked={v} onChange={(c) => updateRow(r.adId, { status: c })} />
       ),
     },
     {
       title: '编辑',
-      width: 90,
+      width: 80,
       align: 'center' as const,
-      render: (_: unknown, r: LinkAdRow) => (
-        <Popconfirm
-          title={`将广告 ${r.name} 移出此广告单？`}
-          onConfirm={() => replace.mutate((link?.ads ?? []).filter((a) => a.adId !== r.adId).map((a) => a.adId))}
-        >
+      render: (_: unknown, r: DraftRow) => (
+        <Popconfirm title={`将广告 ${r.name} 移出此广告单？`} onConfirm={() => removeRow(r.adId)}>
           <Button danger size="small">
-            删除
+            移除
           </Button>
         </Popconfirm>
       ),
@@ -151,14 +234,11 @@ export default function LinkEditPage() {
               {link?.trackers.map((t) => (
                 <Tag key={t.id}>{t.name}</Tag>
               ))}
+              {dirty && <Tag color="orange">未保存更改</Tag>}
             </Space>
             {link?.url && (
               <div style={{ marginTop: 6, fontWeight: 400 }}>
-                <Typography.Text
-                  className="url-text"
-                  copyable={{ text: link.url }}
-                  style={{ wordBreak: 'break-all' }}
-                >
+                <Typography.Text className="url-text" copyable={{ text: link.url }} style={{ wordBreak: 'break-all' }}>
                   <a href={link.url} target="_blank" rel="noreferrer">
                     {link.url}
                   </a>
@@ -168,16 +248,20 @@ export default function LinkEditPage() {
           </div>
         }
         extra={
-          <Button type="primary" onClick={openTransfer}>
-            编辑广告单内广告
-          </Button>
+          <Space>
+            <Button onClick={openTransfer}>编辑广告单内广告</Button>
+            <Button type="primary" loading={save.isPending} disabled={!dirty} onClick={onSubmit}>
+              提交
+            </Button>
+          </Space>
         }
       >
-        {link && link.ads.length ? (
+        {rows.length ? (
           <>
-            <Table rowKey="adId" size="small" pagination={false} columns={columns} dataSource={link.ads} />
+            <Table rowKey="adId" size="small" pagination={false} columns={columns} dataSource={rows} />
             <div style={{ color: '#b7bccb', fontSize: 12, marginTop: 10 }}>
-              提示：权重、量级与备注支持点击后直接编辑，回车即可确认生效。
+              提示：点击「权重」「量级」「备注」可直接编辑；广告组成、权重与量级修改后需点击右上角「提交」保存。
+              新增广告的权重/量级默认为空（—），提交前必须填写大于 0 的整数。
             </div>
           </>
         ) : (
@@ -186,20 +270,24 @@ export default function LinkEditPage() {
       </Card>
 
       {transferOpen && (
-        <Card style={{ marginTop: 18 }} title="广告单内广告编辑" extra={
-          <Space>
-            <Button
-              icon={sortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-              onClick={() => setSortAsc((v) => !v)}
-            >
-              名称 {sortAsc ? 'A→Z' : 'Z→A'}
-            </Button>
-            <Button onClick={() => setTransferOpen(false)}>取消</Button>
-            <Button type="primary" loading={replace.isPending} onClick={() => replace.mutate(targetKeys)}>
-              提交
-            </Button>
-          </Space>
-        }>
+        <Card
+          style={{ marginTop: 18 }}
+          title="广告单内广告编辑"
+          extra={
+            <Space>
+              <Button
+                icon={sortAsc ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
+                onClick={() => setSortAsc((v) => !v)}
+              >
+                名称 {sortAsc ? 'A→Z' : 'Z→A'}
+              </Button>
+              <Button onClick={() => setTransferOpen(false)}>取消</Button>
+              <Button type="primary" onClick={applyTransfer}>
+                确定
+              </Button>
+            </Space>
+          }
+        >
           <Transfer
             dataSource={(allAds.data?.items ?? [])
               .slice()
@@ -213,6 +301,9 @@ export default function LinkEditPage() {
             showSearch
             filterOption={(input, item) => (item.title ?? '').toLowerCase().includes(input.toLowerCase())}
           />
+          <div style={{ color: '#b7bccb', fontSize: 12, marginTop: 10 }}>
+            选择后点「确定」加入列表；新增广告的权重/量级为空，请在上方表格填写后再「提交」。
+          </div>
         </Card>
       )}
     </>

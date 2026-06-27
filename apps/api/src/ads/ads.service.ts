@@ -73,7 +73,7 @@ export class AdsService {
       data: {
         name: dto.name.trim(),
         targetUrl: dto.targetUrl.trim(),
-        description: dto.description ?? '',
+        description: (dto.description ?? '').trim(),
       },
     });
     await this.audit.log({
@@ -93,7 +93,7 @@ export class AdsService {
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.targetUrl !== undefined ? { targetUrl: dto.targetUrl.trim() } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.description !== undefined ? { description: dto.description.trim() } : {}),
       },
     });
     await this.invalidateContainingLinks(id);

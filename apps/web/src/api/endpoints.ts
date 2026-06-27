@@ -69,8 +69,15 @@ export const setLinkStatus = (id: string, status: boolean) =>
   unwrap<LinkRow>(http.patch(`/links/${id}/status`, { status }));
 export const deleteLink = (id: string) => unwrap(http.delete(`/links/${id}`));
 export const getLinkAds = (id: string) => unwrap<LinkAdRow[]>(http.get(`/links/${id}/ads`));
-export const replaceLinkAds = (id: string, adIds: string[]) =>
-  unwrap<LinkAdRow[]>(http.put(`/links/${id}/ads`, { adIds }));
+export interface LinkAdItem {
+  adId: string;
+  weight: number;
+  dailyLimit: number;
+  status?: boolean;
+  note?: string;
+}
+export const replaceLinkAds = (id: string, items: LinkAdItem[]) =>
+  unwrap<LinkAdRow[]>(http.put(`/links/${id}/ads`, { items }));
 export const updateLinkAd = (
   linkId: string,
   adId: string,

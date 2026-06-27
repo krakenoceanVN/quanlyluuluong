@@ -104,7 +104,8 @@ export class LinksService {
         targetUrl: m.ad.targetUrl,
         weight: m.weight,
         dailyLimit: m.dailyLimit,
-        note: m.note,
+        // 备注 = thuộc tính của quảng cáo (đồng bộ với 描述 ở 广告管理), không lưu theo từng link
+        note: m.ad.description,
         status: m.status,
         adStatus: m.ad.status,
         today: flowMap.get(m.id) ?? 0,
@@ -234,49 +235,65 @@ export class LinksService {
       targetUrl: m.ad.targetUrl,
       weight: m.weight,
       dailyLimit: m.dailyLimit,
-      note: m.note,
+      // 备注 = ad.description (đồng bộ với 广告管理)
+      note: m.ad.description,
       status: m.status,
       today: flowMap.get(m.id) ?? 0,
     }));
   }
 
-  /** Replace whole membership set (transfer popup). Keeps config of surviving ads. */
+  /**
+   * Replace whole membership set with full config (transfer 提交).
+   * weight/dailyLimit bắt buộc & > 0 (validate ở DTO). note ghi vào ad.description (đồng bộ theo quảng cáo).
+   */
   async replaceAds(linkId: string, dto: ReplaceLinkAdsDto, userId: string) {
     const link = await this.prisma.link.findFirst({ where: { id: linkId, deletedAt: null } });
     if (!link) throw new NotFoundException('链接不存在');
 
+    const reqIds = dto.items.map((it) => it.adId);
     const validAds = await this.prisma.ad.findMany({
-      where: { id: { in: dto.adIds }, deletedAt: null },
-      select: { id: true, description: true },
+      where: { id: { in: reqIds }, deletedAt: null },
+      select: { id: true },
     });
     const validIds = new Set(validAds.map((a) => a.id));
-    const descMap = new Map(validAds.map((a) => [a.id, a.description]));
+    const items = dto.items.filter((it) => validIds.has(it.adId));
 
     const current = await this.prisma.linkAd.findMany({ where: { linkId } });
-    const currentIds = new Set(current.map((m) => m.adId));
-
-    const toAdd = dto.adIds.filter((id) => validIds.has(id) && !currentIds.has(id));
-    const toRemove = current.filter((m) => !dto.adIds.includes(m.adId)).map((m) => m.adId);
+    const keepIds = new Set(items.map((it) => it.adId));
+    const toRemove = current.filter((m) => !keepIds.has(m.adId));
 
     await this.prisma.$transaction(async (tx) => {
+      // remove dropped memberships (+ their traffic to satisfy FK)
       if (toRemove.length) {
-        const removeMemberships = current.filter((m) => toRemove.includes(m.adId));
-        // delete dependent traffic first to satisfy FK
         await tx.trafficDaily.deleteMany({
-          where: { linkAdId: { in: removeMemberships.map((m) => m.id) } },
+          where: { linkAdId: { in: toRemove.map((m) => m.id) } },
         });
-        await tx.linkAd.deleteMany({ where: { linkId, adId: { in: toRemove } } });
+        await tx.linkAd.deleteMany({ where: { id: { in: toRemove.map((m) => m.id) } } });
       }
-      if (toAdd.length) {
-        const baseOrder = current.length;
-        await tx.linkAd.createMany({
-          data: toAdd.map((adId, i) => ({
+      // upsert each kept/added membership with its config
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        await tx.linkAd.upsert({
+          where: { linkId_adId: { linkId, adId: it.adId } },
+          create: {
             linkId,
-            adId,
-            note: descMap.get(adId) ?? '',
-            sortOrder: baseOrder + i,
-          })),
+            adId: it.adId,
+            weight: it.weight,
+            dailyLimit: it.dailyLimit,
+            status: it.status ?? true,
+            sortOrder: i,
+          },
+          update: {
+            weight: it.weight,
+            dailyLimit: it.dailyLimit,
+            ...(it.status !== undefined ? { status: it.status } : {}),
+            sortOrder: i,
+          },
         });
+        // 备注 = ad.description (đồng bộ theo quảng cáo)
+        if (it.note !== undefined) {
+          await tx.ad.update({ where: { id: it.adId }, data: { description: it.note.trim() } });
+        }
       }
     });
 
@@ -285,7 +302,7 @@ export class LinksService {
       userId,
       module: '链接管理',
       action: 'replace-ads',
-      detail: { linkId, name: link.name, added: toAdd.length, removed: toRemove.length },
+      detail: { linkId, name: link.name, count: items.length, removed: toRemove.length },
     });
     return this.getAds(linkId);
   }

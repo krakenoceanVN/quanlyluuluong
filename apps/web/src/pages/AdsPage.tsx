@@ -44,7 +44,8 @@ export default function AdsPage() {
     enabled: !!drillAd,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['ads'] });
+  // làm mới mọi trang (广告管理/链接编辑/首页/数据查询) vì 描述 = 备注 đồng bộ theo quảng cáo
+  const invalidate = () => qc.invalidateQueries();
 
   const save = useMutation({
     mutationFn: (v: { name: string; targetUrl: string; description?: string }) =>
@@ -193,8 +194,8 @@ export default function AdsPage() {
           >
             <Input placeholder="https://…" />
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input placeholder="如 sly-0601上线" />
+          <Form.Item name="description" label="描述（= 链接编辑的备注 · 跨链接同步）">
+            <Input placeholder="如 sly-0601上线" maxLength={200} />
           </Form.Item>
         </Form>
       </Modal>

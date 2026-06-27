@@ -78,12 +78,38 @@ export class ToggleStatusDto {
   status!: boolean;
 }
 
-/** Replace the whole ad membership set of a link (transfer popup 提交). */
+/** One ad membership in the batch save (transfer 提交). weight/dailyLimit bắt buộc, số nguyên > 0. */
+export class LinkAdItemDto {
+  @IsString()
+  adId!: string;
+
+  @Type(() => Number)
+  @IsInt({ message: '权重必须为整数' })
+  @Min(1, { message: '权重必须大于 0' })
+  weight!: number;
+
+  @Type(() => Number)
+  @IsInt({ message: '量级必须为整数' })
+  @Min(1, { message: '量级必须大于 0' })
+  dailyLimit!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  status?: boolean;
+
+  /** = ad.description (备注 đồng bộ theo quảng cáo) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  note?: string;
+}
+
+/** Replace the whole ad membership set of a link with full config (transfer 提交). */
 export class ReplaceLinkAdsDto {
   @IsArray()
-  @ArrayUnique()
-  @IsString({ each: true })
-  adIds!: string[];
+  @ValidateNested({ each: true })
+  @Type(() => LinkAdItemDto)
+  items!: LinkAdItemDto[];
 }
 
 /** Patch a single membership's config (weight/limit/note/status). */

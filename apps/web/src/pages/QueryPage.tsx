@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import PageHead from '../components/PageHead';
 import EditableText from '../components/EditableText';
-import { getTraffic, updateLinkAd } from '../api/endpoints';
+import { getTraffic, updateAd, updateLinkAd } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { fmt, useDebounce } from '../hooks';
 import type { TrafficLink } from '../types';
@@ -36,11 +36,22 @@ export default function QueryPage() {
   });
 
   const patch = useMutation({
-    mutationFn: (v: { linkId: string; adId: string; body: { status?: boolean; note?: string } }) =>
-      updateLinkAd(v.linkId, v.adId, v.body),
+    mutationFn: (v: { linkId: string; adId: string; status: boolean }) =>
+      updateLinkAd(v.linkId, v.adId, { status: v.status }),
     onSuccess: () => {
       message.success('已保存');
-      qc.invalidateQueries(); // đồng bộ mọi trang (首页/数据查询/链接编辑) cho cùng một quảng cáo
+      qc.invalidateQueries();
+    },
+    onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败'),
+  });
+
+  // 备注 = ad.description → ghi vào quảng cáo, đồng bộ mọi nơi
+  const saveDesc = useMutation({
+    mutationFn: (v: { adId: string; description: string }) =>
+      updateAd(v.adId, { description: v.description }),
+    onSuccess: () => {
+      message.success('已保存');
+      qc.invalidateQueries();
     },
     onError: (e) => message.error(e instanceof ApiError ? e.message : '保存失败'),
   });
@@ -69,18 +80,19 @@ export default function QueryPage() {
           size="small"
           checked={v}
           loading={patch.isPending}
-          onChange={(checked) => patch.mutate({ linkId, adId: r.adId, body: { status: checked } })}
+          onChange={(checked) => patch.mutate({ linkId, adId: r.adId, status: checked })}
         />
       ),
     },
     {
-      title: '备注',
+      title: '备注（= 广告描述 · 跨链接同步）',
       dataIndex: 'note',
       render: (v: string, r: TrafficLink['ads'][number]) => (
         <EditableText
           value={v}
-          width={160}
-          onSave={(note) => patch.mutate({ linkId, adId: r.adId, body: { note } })}
+          width={180}
+          maxLength={200}
+          onSave={(description) => saveDesc.mutate({ adId: r.adId, description })}
         />
       ),
     },
