@@ -139,10 +139,6 @@ export default function QueryPage() {
             }
             extra={
               <Space wrap size={16}>
-                <span>
-                  <Tag color="purple">本期 {from} ~ {to}</Tag>
-                  <b style={{ fontFamily: 'var(--mono)' }}>{fmt(l.rangeTotal)}</b>
-                </span>
                 <span style={{ color: '#8a91a5' }}>
                   <Tag>上期 {data?.prevFrom} ~ {data?.prevTo}</Tag>
                   {fmt(l.prevRangeTotal)}
@@ -152,6 +148,10 @@ export default function QueryPage() {
                       {Math.round(((l.rangeTotal - l.prevRangeTotal) / l.prevRangeTotal) * 100)}%)
                     </span>
                   )}
+                </span>
+                <span>
+                  <Tag color="purple">本期 {from} ~ {to}</Tag>
+                  <b style={{ fontFamily: 'var(--mono)' }}>{fmt(l.rangeTotal)}</b>
                 </span>
               </Space>
             }
