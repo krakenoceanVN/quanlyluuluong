@@ -69,7 +69,6 @@ export default function QueryPage() {
     { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
     { title: '权重', dataIndex: 'weight', align: 'right' as const, width: 80 },
     { title: '限流', dataIndex: 'dailyLimit', align: 'right' as const, width: 100, render: fmt },
-    { title: '本期总量', dataIndex: 'total', align: 'right' as const, width: 110, render: (v: number) => <b>{fmt(v)}</b> },
     {
       title: '上期总量（后退1天）',
       dataIndex: 'prevTotal',
@@ -77,6 +76,7 @@ export default function QueryPage() {
       width: 130,
       render: (v: number) => <span style={{ color: '#8a91a5' }}>{fmt(v)}</span>,
     },
+    { title: '本期总量', dataIndex: 'total', align: 'right' as const, width: 110, render: (v: number) => <b>{fmt(v)}</b> },
     {
       title: '状态',
       dataIndex: 'status',
