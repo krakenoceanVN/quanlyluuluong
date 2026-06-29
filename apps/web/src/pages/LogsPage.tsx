@@ -3,7 +3,8 @@ import { Card, DatePicker, Select, Space, Table, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import PageHead from '../components/PageHead';
-import { listAudit } from '../api/endpoints';
+import { listAudit, listUsers } from '../api/endpoints';
+import { useAuth } from '../auth';
 import type { AuditRow } from '../types';
 
 const ACTION_LABEL: Record<string, string> = {
@@ -75,18 +76,29 @@ function describe(row: AuditRow): { title: string; changes?: Change[] } {
 }
 
 export default function LogsPage() {
+  const { user: me } = useAuth();
+  const isAdmin = me?.role === 'ADMIN';
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [module, setModule] = useState<string | undefined>();
+  const [userId, setUserId] = useState<string | undefined>();
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
 
+  // danh sách người dùng để lọc (chỉ ADMIN mới gọi được /users)
+  const users = useQuery({
+    queryKey: ['users-all'],
+    queryFn: () => listUsers({ page: 1, pageSize: 1000 }),
+    enabled: isAdmin,
+  });
+
   const { data, isFetching } = useQuery({
-    queryKey: ['audit', page, pageSize, module, range?.[0]?.format('YYYY-MM-DD'), range?.[1]?.format('YYYY-MM-DD')],
+    queryKey: ['audit', page, pageSize, module, userId, range?.[0]?.format('YYYY-MM-DD'), range?.[1]?.format('YYYY-MM-DD')],
     queryFn: () =>
       listAudit({
         page,
         pageSize,
         module,
+        userId,
         from: range?.[0]?.format('YYYY-MM-DD'),
         to: range?.[1]?.format('YYYY-MM-DD'),
       }),
@@ -135,8 +147,25 @@ export default function LogsPage() {
                 { value: '链接管理', label: '链接管理' },
                 { value: '广告管理', label: '广告管理' },
                 { value: '统计管理', label: '统计管理' },
+                { value: '用户管理', label: '用户管理' },
               ]}
             />
+            {isAdmin && (
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="按操作人筛选"
+                style={{ width: 160 }}
+                loading={users.isFetching}
+                value={userId}
+                onChange={(v) => {
+                  setUserId(v);
+                  setPage(1);
+                }}
+                options={(users.data?.items ?? []).map((u) => ({ value: u.id, label: u.username }))}
+              />
+            )}
             <DatePicker.RangePicker
               value={range}
               onChange={(v) => {

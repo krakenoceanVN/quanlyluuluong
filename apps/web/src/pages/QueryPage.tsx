@@ -69,7 +69,14 @@ export default function QueryPage() {
     { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
     { title: '权重', dataIndex: 'weight', align: 'right' as const, width: 80 },
     { title: '限流', dataIndex: 'dailyLimit', align: 'right' as const, width: 100, render: fmt },
-    { title: '区间总量', dataIndex: 'total', align: 'right' as const, width: 110, render: (v: number) => <b>{fmt(v)}</b> },
+    { title: '本期总量', dataIndex: 'total', align: 'right' as const, width: 110, render: (v: number) => <b>{fmt(v)}</b> },
+    {
+      title: '上期总量（后退1天）',
+      dataIndex: 'prevTotal',
+      align: 'right' as const,
+      width: 130,
+      render: (v: number) => <span style={{ color: '#8a91a5' }}>{fmt(v)}</span>,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -130,7 +137,24 @@ export default function QueryPage() {
                 <span className="url-text">{l.url}</span>
               </Space>
             }
-            extra={<Tag color="purple">{from} ~ {to}</Tag>}
+            extra={
+              <Space wrap size={16}>
+                <span>
+                  <Tag color="purple">本期 {from} ~ {to}</Tag>
+                  <b style={{ fontFamily: 'var(--mono)' }}>{fmt(l.rangeTotal)}</b>
+                </span>
+                <span style={{ color: '#8a91a5' }}>
+                  <Tag>上期 {data?.prevFrom} ~ {data?.prevTo}</Tag>
+                  {fmt(l.prevRangeTotal)}
+                  {l.prevRangeTotal > 0 && (
+                    <span style={{ marginLeft: 6 }}>
+                      ({l.rangeTotal >= l.prevRangeTotal ? '+' : ''}
+                      {Math.round(((l.rangeTotal - l.prevRangeTotal) / l.prevRangeTotal) * 100)}%)
+                    </span>
+                  )}
+                </span>
+              </Space>
+            }
           >
             <div style={{ height: 200, marginBottom: 14 }}>
               <ResponsiveContainer width="100%" height="100%">

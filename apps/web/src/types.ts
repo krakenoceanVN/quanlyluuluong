@@ -4,6 +4,13 @@ export interface AuthUser {
   role: 'ADMIN' | 'OPERATOR';
 }
 
+export interface UserRow {
+  id: string;
+  username: string;
+  role: 'ADMIN' | 'OPERATOR';
+  createdAt: string;
+}
+
 export interface Paginated<T> {
   items: T[];
   total: number;
@@ -90,6 +97,8 @@ export interface TrafficLink {
   id: string;
   name: string;
   url: string;
+  rangeTotal: number;
+  prevRangeTotal: number;
   ads: {
     seq: number;
     adId: string;
@@ -100,6 +109,7 @@ export interface TrafficLink {
     status: boolean;
     note: string;
     total: number;
+    prevTotal: number;
   }[];
   series: { date: string; count: number }[];
 }

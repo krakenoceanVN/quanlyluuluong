@@ -135,11 +135,36 @@ export class ReportsService {
         series.push({ date: d, count: byDate.get(d) ?? 0 });
       }
 
+      // ── Kỳ lùi 1 ngày (cùng độ dài): [from-1, to-1] ──
+      const prevFrom = addDays(from, -1);
+      const prevTo = addDays(to, -1);
+      const prevRows = ids.length
+        ? await this.prisma.trafficDaily.findMany({
+            where: { linkAdId: { in: ids }, date: { gte: asUtcDate(prevFrom), lte: asUtcDate(prevTo) } },
+          })
+        : [];
+      const prevLive =
+        prevTo >= todayKey() && prevFrom <= todayKey() ? await this.flow.getTodayMap(ids) : new Map();
+      const prevByMember = new Map<string, number>();
+      for (const r of prevRows) {
+        const dk = r.date.toISOString().slice(0, 10);
+        if (dk === todayKey() && prevLive.has(r.linkAdId)) continue;
+        prevByMember.set(r.linkAdId, (prevByMember.get(r.linkAdId) ?? 0) + r.count);
+      }
+      for (const [id, v] of prevLive) {
+        prevByMember.set(id, (prevByMember.get(id) ?? 0) + (v as number));
+      }
+
+      const rangeTotal = memberships.reduce((s, m) => s + (totalByMember.get(m.id) ?? 0), 0);
+      const prevRangeTotal = memberships.reduce((s, m) => s + (prevByMember.get(m.id) ?? 0), 0);
+
       const domain = (process.env.PUBLIC_LINK_DOMAIN ?? 'http://localhost:3000').replace(/\/$/, '');
       result.push({
         id: l.id,
         name: l.name,
         url: `${domain}/main/link/${l.shortCode}`,
+        rangeTotal,
+        prevRangeTotal,
         ads: memberships.map((m, i) => ({
           seq: i + 1,
           adId: m.adId,
@@ -150,11 +175,12 @@ export class ReportsService {
           status: m.status,
           note: m.ad.description, // đồng bộ với 描述 (广告管理)
           total: totalByMember.get(m.id) ?? 0,
+          prevTotal: prevByMember.get(m.id) ?? 0,
         })),
         series,
       });
     }
 
-    return { from, to, links: result };
+    return { from, to, prevFrom: addDays(from, -1), prevTo: addDays(to, -1), links: result };
   }
 }

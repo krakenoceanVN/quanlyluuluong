@@ -5,6 +5,7 @@ import { RedisModule } from './redis/redis.module';
 import { FlowModule } from './flow/flow.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { TrackersModule } from './trackers/trackers.module';
 import { AdsModule } from './ads/ads.module';
 import { LinksModule } from './links/links.module';
@@ -21,6 +22,7 @@ import { EngineModule } from './engine/engine.module';
     FlowModule,
     AuditModule,
     AuthModule,
+    UsersModule,
     TrackersModule,
     AdsModule,
     LinksModule,

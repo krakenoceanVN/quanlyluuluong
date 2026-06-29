@@ -6,6 +6,7 @@ import {
   PlayCircleOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  TeamOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
@@ -19,6 +20,7 @@ const MENU = [
   { key: '/links', icon: <LinkOutlined />, label: '链接管理' },
   { key: '/ads', icon: <PlayCircleOutlined />, label: '广告管理' },
   { key: '/stats', icon: <BarChartOutlined />, label: '统计管理' },
+  { key: '/users', icon: <TeamOutlined />, label: '用户管理', adminOnly: true },
   { key: '/logs', icon: <FileTextOutlined />, label: '操作日志' },
 ];
 
@@ -55,7 +57,7 @@ export default function AppLayout() {
           mode="inline"
           selectedKeys={[selected]}
           style={{ background: 'transparent', borderInlineEnd: 'none', marginTop: 8 }}
-          items={MENU}
+          items={MENU.filter((m) => !m.adminOnly || user?.role === 'ADMIN').map(({ key, icon, label }) => ({ key, icon, label }))}
           onClick={({ key }) => nav(key)}
         />
         <div style={{ position: 'absolute', bottom: 0, width: '100%', padding: 16, borderTop: '1px solid #313b55' }}>

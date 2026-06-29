@@ -10,6 +10,7 @@ import type {
   Paginated,
   Tracker,
   TrafficLink,
+  UserRow,
 } from '../types';
 
 // ── Auth ──
@@ -21,6 +22,15 @@ export async function login(username: string, password: string) {
   return data.user;
 }
 export const getMe = () => unwrap<AuthUser>(http.get('/auth/me'));
+
+// ── Users (chỉ ADMIN) ──
+export const listUsers = (params: { page: number; pageSize: number; keyword?: string }) =>
+  unwrap<Paginated<UserRow>>(http.get('/users', { params }));
+export const createUser = (body: { username: string; password: string; role: 'ADMIN' | 'OPERATOR' }) =>
+  unwrap<UserRow>(http.post('/users', body));
+export const updateUser = (id: string, body: { role?: 'ADMIN' | 'OPERATOR'; password?: string }) =>
+  unwrap<UserRow>(http.patch(`/users/${id}`, body));
+export const deleteUser = (id: string) => unwrap(http.delete(`/users/${id}`));
 
 // ── Trackers ──
 export const listTrackers = (params: { page: number; pageSize: number; keyword?: string }) =>
@@ -92,13 +102,17 @@ export const getTraffic = (params: {
   to?: string;
   linkId?: string;
   adKeyword?: string;
-}) => unwrap<{ from: string; to: string; links: TrafficLink[] }>(http.get('/traffic', { params }));
+}) =>
+  unwrap<{ from: string; to: string; prevFrom: string; prevTo: string; links: TrafficLink[] }>(
+    http.get('/traffic', { params }),
+  );
 
 // ── Audit ──
 export const listAudit = (params: {
   page: number;
   pageSize: number;
   module?: string;
+  userId?: string;
   from?: string;
   to?: string;
 }) => unwrap<Paginated<AuditRow>>(http.get('/audit-logs', { params }));

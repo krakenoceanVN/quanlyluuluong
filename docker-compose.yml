@@ -50,6 +50,8 @@ services:
       PUBLIC_LINK_DOMAIN: ${PUBLIC_LINK_DOMAIN:-http://localhost:3000}
       TRAFFIC_SYNC_INTERVAL_SEC: ${TRAFFIC_SYNC_INTERVAL_SEC:-60}
       LINK_CACHE_TTL_SEC: ${LINK_CACHE_TTL_SEC:-30}
+      # Múi giờ nghiệp vụ để chốt "ngày" (phút). UTC+8 (TQ) = 480, UTC+7 (VN) = 420
+      BUSINESS_UTC_OFFSET_MIN: ${BUSINESS_UTC_OFFSET_MIN:-480}
     ports:
       - "3000:3000"
     # On boot: apply migrations, seed (idempotent), then start

@@ -9,7 +9,19 @@ export const linkConfigKey = (shortCode: string) => `link:cfg:${shortCode}`;
 /** Set of linkAdIds with un-synced counter increments (worker drains this). */
 export const dirtyFlowSet = () => `flow:dirty`;
 
-/** yyyy-mm-dd in UTC for "today". */
+/**
+ * Lệch múi giờ nghiệp vụ (phút) để chốt "ngày" theo giờ địa phương, KHÔNG theo UTC.
+ * Mặc định UTC+8 (giờ Trung Quốc) = 480 — ngày đổi lúc 24h giờ TQ.
+ * (UTC+7 Việt Nam = 420). Cấu hình qua biến môi trường BUSINESS_UTC_OFFSET_MIN.
+ */
+export const BUSINESS_UTC_OFFSET_MIN = Number(process.env.BUSINESS_UTC_OFFSET_MIN ?? 480);
+
+/** yyyy-mm-dd theo múi giờ nghiệp vụ cho "hôm nay". */
 export function todayKey(d: Date = new Date()): string {
-  return d.toISOString().slice(0, 10);
+  return new Date(d.getTime() + BUSINESS_UTC_OFFSET_MIN * 60000).toISOString().slice(0, 10);
+}
+
+/** Đổi chuỗi ngày nghiệp vụ (yyyy-mm-dd) → mốc Date để lưu/truy vấn DB (nhãn ngày, ổn định 2 chiều). */
+export function businessDateToUtc(date: string): Date {
+  return new Date(`${date}T00:00:00.000Z`);
 }

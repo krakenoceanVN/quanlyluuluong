@@ -9,6 +9,7 @@ import LinksPage from './pages/LinksPage';
 import LinkEditPage from './pages/LinkEditPage';
 import AdsPage from './pages/AdsPage';
 import TrackersPage from './pages/TrackersPage';
+import UsersPage from './pages/UsersPage';
 import LogsPage from './pages/LogsPage';
 import type { JSX } from 'react';
 
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/links/:id" element={<LinkEditPage />} />
         <Route path="/ads" element={<AdsPage />} />
         <Route path="/stats" element={<TrackersPage />} />
+        <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<LogsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
