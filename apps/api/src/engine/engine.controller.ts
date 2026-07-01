@@ -19,19 +19,33 @@ color:#2a3040;display:flex;align-items:center;justify-content:center;height:100v
 
 /** Chỉ chấp nhận URL http(s) hoặc protocol-relative (//...) — chặn javascript:, data:… */
 const SAFE_SRC = /^(https?:)?\/\/[^\s"'<>]+$/i;
+/** Một khối <script ...>...</script> (ngoài hoặc nội tuyến). */
+const SCRIPT_BLOCK = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+const SRC_ATTR = /\bsrc\s*=\s*["']([^"']+)["']/i;
+/** Thuộc tính sự kiện on* (onload/onerror…) — strip để chặn XSS lộ liễu. */
+const ON_ATTR = /\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 
 /**
- * Chống XSS (#27): CHỈ giữ lại các thẻ <script src="..."></script> trỏ tới nguồn an toàn
- * (đúng nhu cầu tracker 51la…), loại bỏ mọi script inline, thuộc tính on*, HTML khác.
+ * Mã thống kê bên thứ 3 (51la…) do ADMIN nhập — vốn LÀ script bên thứ ba nhúng vào trang.
+ * Giữ đúng thứ SDK cần để chạy:
+ *   - <script src="..."> nguồn an toàn, GIỮ NGUYÊN thuộc tính (id, charset, data-attr, async…)
+ *     vì nhiều SDK tự init dựa vào các thuộc tính này (vd id="LA_COLLECT").
+ *   - <script>...</script> nội tuyến (vd LA.init({...})) — 51la v6 bắt buộc.
+ * Chặn: src không phải http/https/protocol-relative, và mọi thuộc tính sự kiện on*.
+ * (Cho phép JS nội tuyến = tin tưởng input ADMIN, đúng bản chất tính năng nhúng tracker.)
  */
 function sanitizeTrackers(trackers: string[]): string {
   const out: string[] = [];
-  const scriptTag = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>\s*<\/script>/gi;
   for (const code of trackers) {
     let m: RegExpExecArray | null;
-    while ((m = scriptTag.exec(code)) !== null) {
-      const src = m[1].trim();
-      if (SAFE_SRC.test(src)) out.push(`<script src="${src.replace(/"/g, '&quot;')}"></script>`);
+    SCRIPT_BLOCK.lastIndex = 0;
+    while ((m = SCRIPT_BLOCK.exec(code)) !== null) {
+      const rawAttrs = m[1] ?? '';
+      const body = m[2] ?? '';
+      const src = SRC_ATTR.exec(rawAttrs)?.[1]?.trim();
+      if (src && !SAFE_SRC.test(src)) continue; // src không an toàn → bỏ cả khối
+      const attrs = rawAttrs.replace(ON_ATTR, '').replace(/\s+/g, ' ').trim();
+      out.push(`<script${attrs ? ` ${attrs}` : ''}>${body}</script>`);
     }
   }
   return out.join('\n');
