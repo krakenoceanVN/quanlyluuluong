@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottleCountGuard } from './engine/throttle-count.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { FlowModule } from './flow/flow.module';
@@ -33,6 +34,7 @@ import { EngineModule } from './engine/engine.module';
     ReportsModule,
     EngineModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  // ThrottleCountGuard = ThrottlerGuard + đếm 429 cho engine (cần EngineStatsService từ EngineModule).
+  providers: [{ provide: APP_GUARD, useClass: ThrottleCountGuard }],
 })
 export class AppModule {}

@@ -10,6 +10,13 @@ export const linkConfigKey = (shortCode: string) => `link:cfg:${shortCode}`;
 export const dirtyFlowSet = () => `flow:dirty`;
 
 /**
+ * Bộ đếm kết quả engine theo shortCode + ngày nghiệp vụ.
+ * Hash với các field: redirect / fallback / notfound / throttled.
+ * e.g. stat:engine:o702jib0:2026-07-01
+ */
+export const engineStatKey = (shortCode: string, date: string) => `stat:engine:${shortCode}:${date}`;
+
+/**
  * Lệch múi giờ nghiệp vụ (phút) để chốt "ngày" theo giờ địa phương, KHÔNG theo UTC.
  * Mặc định UTC+8 (giờ Trung Quốc) = 480 — ngày đổi lúc 24h giờ TQ.
  * (UTC+7 Việt Nam = 420). Cấu hình qua biến môi trường BUSINESS_UTC_OFFSET_MIN.

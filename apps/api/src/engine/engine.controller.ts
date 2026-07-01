@@ -2,6 +2,7 @@ import { Controller, Get, Param, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { EngineService } from './engine.service';
+import { EngineStatsService } from './engine-stats.service';
 
 function htmlPage(body: string, status = 200): { status: number; html: string } {
   return {
@@ -54,7 +55,10 @@ function redirectPage(targetUrl: string, trackers: string[]): string {
 
 @Controller()
 export class EngineController {
-  constructor(private readonly engine: EngineService) {}
+  constructor(
+    private readonly engine: EngineService,
+    private readonly stats: EngineStatsService,
+  ) {}
 
   @SkipThrottle()
   @Get('health')
@@ -67,6 +71,9 @@ export class EngineController {
   @Get('main/link/:shortCode')
   async serve(@Param('shortCode') shortCode: string, @Res() res: Response) {
     const result = await this.engine.serve(shortCode);
+
+    // Đo kết quả để nhìn thấy "traffic rơi ở đâu" (fire-and-forget, không thêm độ trễ).
+    void this.stats.bump(shortCode, result.kind);
 
     if (result.kind === 'notfound') {
       const p = htmlPage('<div class="box"><b>页面不存在</b><span>链接无效或已下线</span></div>', 404);
