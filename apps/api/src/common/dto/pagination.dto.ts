@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class PaginationQueryDto {
   @IsOptional()
@@ -17,6 +17,7 @@ export class PaginationQueryDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '搜索关键词过长' })
   keyword?: string;
 }
 

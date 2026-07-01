@@ -32,26 +32,30 @@ export class FlowService {
   async increment(linkAdId: string): Promise<number> {
     const date = todayKey();
     const key = flowKey(linkAdId, date);
+    try {
+      // If the key is cold, recover the base value from TrafficDaily so we don't restart at 0.
+      let base = 0;
+      if ((await this.redis.client.exists(key)) === 0) {
+        const row = await this.prisma.trafficDaily.findUnique({
+          where: { linkAdId_date: { linkAdId, date: new Date(`${date}T00:00:00.000Z`) } },
+        });
+        base = row?.count ?? 0;
+      }
 
-    // If the key is cold, recover the base value from TrafficDaily so we don't restart at 0.
-    let base = 0;
-    if ((await this.redis.client.exists(key)) === 0) {
-      const row = await this.prisma.trafficDaily.findUnique({
-        where: { linkAdId_date: { linkAdId, date: new Date(`${date}T00:00:00.000Z`) } },
-      });
-      base = row?.count ?? 0;
+      const n = (await this.redis.client.eval(
+        FlowService.INCR_LUA,
+        2,
+        key,
+        dirtyFlowSet(),
+        String(base),
+        String(FLOW_TTL_SEC),
+        `${linkAdId}|${date}`,
+      )) as number;
+      return Number(n);
+    } catch {
+      // #55: Redis lỗi → bỏ qua đếm lần này, KHÔNG chặn redirect
+      return 0;
     }
-
-    const n = (await this.redis.client.eval(
-      FlowService.INCR_LUA,
-      2,
-      key,
-      dirtyFlowSet(),
-      String(base),
-      String(FLOW_TTL_SEC),
-      `${linkAdId}|${date}`,
-    )) as number;
-    return Number(n);
   }
 
   /** Current counter value for a membership today (Redis first, DB fallback). */
@@ -65,7 +69,13 @@ export class FlowService {
     const out = new Map<string, number>();
     if (linkAdIds.length === 0) return out;
     const date = todayKey();
-    const vals = await this.redis.client.mget(linkAdIds.map((id) => flowKey(id, date)));
+    // #55: nếu Redis lỗi → coi như tất cả thiếu, lấy từ DB
+    let vals: (string | null)[] = [];
+    try {
+      vals = await this.redis.client.mget(linkAdIds.map((id) => flowKey(id, date)));
+    } catch {
+      vals = linkAdIds.map(() => null);
+    }
     const missing: string[] = [];
     linkAdIds.forEach((id, i) => {
       const v = vals[i];

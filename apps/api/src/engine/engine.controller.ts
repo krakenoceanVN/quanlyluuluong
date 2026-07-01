@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { EngineService } from './engine.service';
 
@@ -15,13 +16,39 @@ color:#2a3040;display:flex;align-items:center;justify-content:center;height:100v
   };
 }
 
+/** Chỉ chấp nhận URL http(s) hoặc protocol-relative (//...) — chặn javascript:, data:… */
+const SAFE_SRC = /^(https?:)?\/\/[^\s"'<>]+$/i;
+
+/**
+ * Chống XSS (#27): CHỈ giữ lại các thẻ <script src="..."></script> trỏ tới nguồn an toàn
+ * (đúng nhu cầu tracker 51la…), loại bỏ mọi script inline, thuộc tính on*, HTML khác.
+ */
+function sanitizeTrackers(trackers: string[]): string {
+  const out: string[] = [];
+  const scriptTag = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>\s*<\/script>/gi;
+  for (const code of trackers) {
+    let m: RegExpExecArray | null;
+    while ((m = scriptTag.exec(code)) !== null) {
+      const src = m[1].trim();
+      if (SAFE_SRC.test(src)) out.push(`<script src="${src.replace(/"/g, '&quot;')}"></script>`);
+    }
+  }
+  return out.join('\n');
+}
+
+/** Escape cho ngữ cảnh thuộc tính HTML. */
+function attrEscape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function redirectPage(targetUrl: string, trackers: string[]): string {
-  // thin page: fire trackers, then redirect
-  const safe = targetUrl.replace(/"/g, '&quot;');
+  // JSON.stringify → chuỗi JS an toàn (xử lý ", \, xuống dòng) — fix #16/#39
+  const jsSafe = JSON.stringify(targetUrl);
+  const attrSafe = attrEscape(targetUrl);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>跳转中…</title>${trackers.join('\n')}
-<script>setTimeout(function(){location.replace("${safe}")},120);</script>
-<noscript><meta http-equiv="refresh" content="0;url=${safe}"></noscript>
+<title>跳转中…</title>${sanitizeTrackers(trackers)}
+<script>setTimeout(function(){location.replace(${jsSafe})},120);</script>
+<noscript><meta http-equiv="refresh" content="0;url=${attrSafe}"></noscript>
 </head><body></body></html>`;
 }
 
@@ -29,11 +56,14 @@ function redirectPage(targetUrl: string, trackers: string[]): string {
 export class EngineController {
   constructor(private readonly engine: EngineService) {}
 
+  @SkipThrottle()
   @Get('health')
   health(@Res() res: Response) {
     res.status(200).json({ status: 'ok', ts: new Date().toISOString() });
   }
 
+  // #51: chặn 1 IP flood engine (600/60s ≈ 10/s/IP) — người dùng thật không ảnh hưởng
+  @Throttle({ default: { limit: 600, ttl: 60000 } })
   @Get('main/link/:shortCode')
   async serve(@Param('shortCode') shortCode: string, @Res() res: Response) {
     const result = await this.engine.serve(shortCode);
@@ -46,7 +76,7 @@ export class EngineController {
 
     if (result.kind === 'fallback') {
       // still fire trackers so impressions are counted, then show fallback notice
-      const trackers = result.trackers?.length ? result.trackers.join('\n') : '';
+      const trackers = result.trackers?.length ? sanitizeTrackers(result.trackers) : '';
       const p = htmlPage(
         `${trackers}<div class="box"><b>暂无可用内容</b><span>请稍后再试</span></div>`,
         200,

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { FlowModule } from './flow/flow.module';
@@ -17,6 +19,8 @@ import { EngineModule } from './engine/engine.module';
     // Load .env from the api folder first, then fall back to the repo-root .env,
     // so the app works whether started from apps/api or the monorepo root.
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
+    // Rate limit mặc định: 200 request / 60s / IP (chống flood #52). Auth & engine có mức riêng.
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 200 }]),
     PrismaModule,
     RedisModule,
     FlowModule,
@@ -29,5 +33,6 @@ import { EngineModule } from './engine/engine.module';
     ReportsModule,
     EngineModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

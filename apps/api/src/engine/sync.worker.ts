@@ -34,8 +34,16 @@ export class SyncWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`traffic sync worker started (every ${sec}s)`);
   }
 
-  onModuleDestroy() {
+  async onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
+    // #60: flush lần cuối khi tắt để không mất số đếm chưa đồng bộ
+    if (process.env.DISABLE_SYNC_WORKER !== '1') {
+      try {
+        await this.flush();
+      } catch {
+        /* ignore on shutdown */
+      }
+    }
   }
 
   /** Drain the dirty set and upsert each counter. Exposed for tests. */

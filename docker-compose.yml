@@ -39,12 +39,14 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      # LOCAL/dev: không enforce secret mạnh. Production dùng docker-compose.prod.yml (NODE_ENV=production).
+      NODE_ENV: ${NODE_ENV:-development}
       API_PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-tms}:${POSTGRES_PASSWORD:-tms_pass}@postgres:5432/${POSTGRES_DB:-tms}?schema=public
       REDIS_URL: redis://redis:6379
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret}
+      # Secret demo cho môi trường LOCAL. Production dùng docker-compose.prod.yml + .env.production (secret riêng).
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-local-dev-access-7f3c9a2b8e1d4056}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-dev-refresh-2a6d0b9e5c8f1347}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900s}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
       PUBLIC_LINK_DOMAIN: ${PUBLIC_LINK_DOMAIN:-http://localhost:3000}

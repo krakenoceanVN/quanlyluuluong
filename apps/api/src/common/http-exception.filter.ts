@@ -33,7 +33,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         if (b.fields && typeof b.fields === 'object') fields = b.fields as Record<string, string[]>;
       }
     } else if (exception instanceof Error) {
-      this.logger.error(exception.message, exception.stack);
+      // #12: lỗi có status sẵn (vd body-parser 413 PayloadTooLarge) → giữ đúng status
+      const withStatus = exception as Error & { status?: number; statusCode?: number; type?: string };
+      const s = withStatus.status ?? withStatus.statusCode;
+      if (typeof s === 'number' && s >= 400 && s < 600) {
+        status = s;
+        message =
+          withStatus.type === 'entity.too.large' || s === 413
+            ? '请求体过大（超过限制）'
+            : exception.message;
+      } else {
+        this.logger.error(exception.message, exception.stack);
+      }
     }
 
     res.status(status).json({

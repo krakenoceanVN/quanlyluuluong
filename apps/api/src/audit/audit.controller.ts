@@ -1,11 +1,15 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/dto/pagination.dto';
 import { QueryAuditDto } from './dto/query-audit.dto';
 
-@UseGuards(JwtAuthGuard)
+// #1: nhật ký chỉ ADMIN được xem
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 @Controller('audit-logs')
 export class AuditController {
   constructor(private readonly prisma: PrismaService) {}

@@ -118,17 +118,26 @@ export class LinksService {
     } else {
       shortCode = await this.genShortCode();
     }
-    const link = await this.prisma.link.create({
-      data: {
-        name,
-        description: dto.description ?? '',
-        note: dto.note ?? '',
-        shortCode,
-        trackers: dto.trackerIds?.length
-          ? { create: dto.trackerIds.map((trackerId) => ({ trackerId })) }
-          : undefined,
-      },
-    });
+    let link;
+    try {
+      link = await this.prisma.link.create({
+        data: {
+          name,
+          description: dto.description ?? '',
+          note: dto.note ?? '',
+          shortCode,
+          trackers: dto.trackerIds?.length
+            ? { create: dto.trackerIds.map((trackerId) => ({ trackerId })) }
+            : undefined,
+        },
+      });
+    } catch (e) {
+      // #8: race tạo trùng shortCode (unique) → trả 409 thay vì 500
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new BusinessConflictException('链接后缀已被占用，请更换');
+      }
+      throw e;
+    }
     await this.audit.log({
       userId,
       module: '链接管理',

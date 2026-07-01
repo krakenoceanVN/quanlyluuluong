@@ -25,7 +25,7 @@ export class AuthService {
     let payload: JwtPayload;
     try {
       payload = await this.jwt.verifyAsync<JwtPayload>(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('刷新令牌无效或已过期');
@@ -41,14 +41,14 @@ export class AuthService {
     const accessToken = await this.jwt.signAsync(
       { ...base, type: 'access' },
       {
-        secret: this.config.get<string>('JWT_ACCESS_SECRET'),
+        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: this.config.get<string>('JWT_ACCESS_TTL', '900s'),
       },
     );
     const refreshToken = await this.jwt.signAsync(
       { ...base, type: 'refresh' },
       {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.config.get<string>('JWT_REFRESH_TTL', '7d'),
       },
     );

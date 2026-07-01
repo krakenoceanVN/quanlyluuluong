@@ -1,19 +1,19 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsYmd } from '../../common/validation';
 
 export class DashboardQueryDto {
-  /** yyyy-mm-dd; defaults to today */
   @IsOptional()
-  @IsString()
+  @IsYmd()
   date?: string;
 }
 
 export class TrafficQueryDto {
   @IsOptional()
-  @IsString()
+  @IsYmd()
   from?: string;
 
   @IsOptional()
-  @IsString()
+  @IsYmd()
   to?: string;
 
   @IsOptional()
@@ -22,5 +22,6 @@ export class TrafficQueryDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '广告关键词过长' })
   adKeyword?: string;
 }

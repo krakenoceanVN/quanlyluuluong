@@ -44,7 +44,13 @@ export class EngineService {
   /** Load link config from Redis cache, falling back to DB and caching the result. */
   private async getConfig(shortCode: string): Promise<LinkConfig | null> {
     const key = linkConfigKey(shortCode);
-    const cached = await this.redis.client.get(key);
+    // #55: nếu Redis lỗi → coi như cache miss, đọc thẳng DB (engine vẫn phục vụ)
+    let cached: string | null = null;
+    try {
+      cached = await this.redis.client.get(key);
+    } catch {
+      cached = null;
+    }
     if (cached) {
       try {
         return JSON.parse(cached) as LinkConfig;
@@ -79,7 +85,11 @@ export class EngineService {
     };
 
     const ttl = Number(this.config.get('LINK_CACHE_TTL_SEC', 30));
-    await this.redis.client.set(key, JSON.stringify(cfg), 'EX', ttl);
+    try {
+      await this.redis.client.set(key, JSON.stringify(cfg), 'EX', ttl);
+    } catch {
+      /* #55: Redis lỗi thì bỏ qua cache, vẫn trả config từ DB */
+    }
     return cfg;
   }
 

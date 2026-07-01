@@ -60,7 +60,7 @@ export default function LinksPage() {
 
   const trackerOpts = useQuery({
     queryKey: ['trackers-all'],
-    queryFn: () => listTrackers({ page: 1, pageSize: 200 }),
+    queryFn: () => listTrackers({ page: 1, pageSize: 1000 }),
     enabled: showForm,
   });
 

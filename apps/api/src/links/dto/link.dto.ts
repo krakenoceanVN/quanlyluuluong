@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
@@ -13,14 +13,17 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { NAME_RULE, trimStr } from '../../common/validation';
 
 /** Custom URL suffix: lowercase letters, digits and hyphens, length 3-40. */
 export const SHORT_CODE_RULE = /^[a-z0-9-]{3,40}$/;
 
 export class CreateLinkDto {
+  @Transform(trimStr)
   @IsString()
   @MinLength(1, { message: '名称不能为空' })
   @MaxLength(100)
+  @Matches(NAME_RULE, { message: '名称不能包含 < > 或控制字符' })
   name!: string;
 
   @IsOptional()
@@ -51,9 +54,11 @@ export class CreateLinkDto {
 
 export class UpdateLinkDto {
   @IsOptional()
+  @Transform(trimStr)
   @IsString()
   @MinLength(1)
   @MaxLength(100)
+  @Matches(NAME_RULE, { message: '名称不能包含 < > 或控制字符' })
   name?: string;
 
   @IsOptional()
