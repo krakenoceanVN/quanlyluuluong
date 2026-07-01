@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import PageHead from '../components/PageHead';
 import { getDashboard, updateLinkAd } from '../api/endpoints';
 import { fmt } from '../hooks';
+import { naturalCompare } from '../utils/sort';
 import type { DashboardLink } from '../types';
 
 export default function HomePage() {
@@ -61,42 +62,45 @@ export default function HomePage() {
         crumb="在线广告单链接 · 实时流量总览"
         extra={<DatePicker value={date} onChange={(d) => d && setDate(d)} allowClear={false} />}
       />
-      {(data?.links ?? []).map((link) => (
-        <Card
-          key={link.id}
-          style={{ marginBottom: 18 }}
-          title={
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-              <span>{link.name}</span>
-              <span className="url-text">{link.url}</span>
-            </div>
-          }
-          extra={
-            <div style={{ display: 'flex', gap: 18, fontSize: 12, color: '#8a91a5' }}>
-              <span className="kpi">
-                昨日总量 <b>{link.ads.length ? fmt(link.yesterdayTotal) : '—'}</b>
-              </span>
-              <span className="kpi">
-                {isToday && <span className="live-dot" />}
-                {isToday ? '今日实时' : '当日总量'}{' '}
-                <b style={{ color: '#2fb3c4' }}>{link.ads.length ? fmt(link.todayTotal) : '—'}</b>
-              </span>
-            </div>
-          }
-        >
-          {link.ads.length ? (
-            <Table
-              rowKey="linkAdId"
-              size="small"
-              pagination={false}
-              columns={columns(link)}
-              dataSource={link.ads}
-            />
-          ) : (
-            <Empty description="此广告单暂无广告 · 前往「链接管理」添加" />
-          )}
-        </Card>
-      ))}
+      {(data?.links ?? [])
+        .slice()
+        .sort((a, b) => naturalCompare(a.name, b.name))
+        .map((link) => (
+          <Card
+            key={link.id}
+            style={{ marginBottom: 18 }}
+            title={
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span>{link.name}</span>
+                <span className="url-text">{link.url}</span>
+              </div>
+            }
+            extra={
+              <div style={{ display: 'flex', gap: 18, fontSize: 12, color: '#8a91a5' }}>
+                <span className="kpi">
+                  昨日总量 <b>{link.ads.length ? fmt(link.yesterdayTotal) : '—'}</b>
+                </span>
+                <span className="kpi">
+                  {isToday && <span className="live-dot" />}
+                  {isToday ? '今日实时' : '当日总量'}{' '}
+                  <b style={{ color: '#2fb3c4' }}>{link.ads.length ? fmt(link.todayTotal) : '—'}</b>
+                </span>
+              </div>
+            }
+          >
+            {link.ads.length ? (
+              <Table
+                rowKey="linkAdId"
+                size="small"
+                pagination={false}
+                columns={columns(link)}
+                dataSource={link.ads}
+              />
+            ) : (
+              <Empty description="此广告单暂无广告 · 前往「链接管理」添加" />
+            )}
+          </Card>
+        ))}
       {!isLoading && (data?.links?.length ?? 0) === 0 && (
         <Card>
           <Empty description="暂无在线广告单链接">

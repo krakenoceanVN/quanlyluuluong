@@ -38,7 +38,7 @@ export class UsersService {
       data: { username, passwordHash: await bcrypt.hash(dto.password, 10), role: dto.role },
       select: { id: true, username: true, role: true, createdAt: true },
     });
-    await this.audit.log({
+    void this.audit.log({
       userId: actorId,
       module: '用户管理',
       action: 'create',
@@ -58,7 +58,7 @@ export class UsersService {
       data,
       select: { id: true, username: true, role: true, createdAt: true },
     });
-    await this.audit.log({
+    void this.audit.log({
       userId: actorId,
       module: '用户管理',
       action: 'update',
@@ -85,7 +85,7 @@ export class UsersService {
       this.prisma.auditLog.updateMany({ where: { userId: id }, data: { userId: null } }),
       this.prisma.user.delete({ where: { id } }),
     ]);
-    await this.audit.log({
+    void this.audit.log({
       userId: actorId,
       module: '用户管理',
       action: 'delete',

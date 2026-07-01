@@ -6,12 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { FlowService } from '../flow/flow.service';
 import { BusinessConflictException } from '../common/app.exceptions';
 import { paginate, Paginated } from '../common/dto/pagination.dto';
-import {
-  CreateLinkDto,
-  ReplaceLinkAdsDto,
-  UpdateLinkAdDto,
-  UpdateLinkDto,
-} from './dto/link.dto';
+import { CreateLinkDto, ReplaceLinkAdsDto, UpdateLinkAdDto, UpdateLinkDto } from './dto/link.dto';
 
 @Injectable()
 export class LinksService {
@@ -42,7 +37,7 @@ export class LinksService {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.link.findMany({
         where,
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: { _count: { select: { linkAds: true } } },
@@ -75,7 +70,7 @@ export class LinksService {
       where: { id, deletedAt: null },
       include: {
         linkAds: {
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
           include: { ad: true },
         },
         trackers: { include: { tracker: true } },
@@ -147,18 +142,29 @@ export class LinksService {
     const before = await this.prisma.link.findFirst({ where: { id, deletedAt: null } });
     if (!before) throw new NotFoundException('链接不存在');
 
+    const data: Prisma.LinkUpdateInput = {};
+    if (dto.name !== undefined && dto.name !== null) data.name = dto.name.trim();
+    if (dto.description !== undefined && dto.description !== null) data.description = dto.description;
+    if (dto.note !== undefined && dto.note !== null) data.note = dto.note;
+
     const after = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.link.update({
-        where: { id },
-        data: {
-          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-          ...(dto.description !== undefined ? { description: dto.description } : {}),
-          ...(dto.note !== undefined ? { note: dto.note } : {}),
-        },
-      });
-      if (dto.trackerIds !== undefined) {
+      const updated = Object.keys(data).length
+        ? await tx.link.update({ where: { id }, data })
+        : await tx.link.findUniqueOrThrow({ where: { id } });
+      if (dto.trackerIds !== undefined && dto.trackerIds !== null) {
         await tx.linkTracker.deleteMany({ where: { linkId: id } });
         if (dto.trackerIds.length) {
+          const existing = await tx.tracker.findMany({
+            where: { id: { in: dto.trackerIds }, deletedAt: null },
+            select: { id: true },
+          });
+          const validIds = new Set(existing.map((t) => t.id));
+          const unknown = dto.trackerIds.filter((tid) => !validIds.has(tid));
+          if (unknown.length) {
+            throw new BusinessConflictException(
+              `统计不存在或已删除：${unknown.join(', ')}`,
+            );
+          }
           await tx.linkTracker.createMany({
             data: dto.trackerIds.map((trackerId) => ({ linkId: id, trackerId })),
           });
@@ -224,7 +230,7 @@ export class LinksService {
     if (!link) throw new NotFoundException('链接不存在');
     const memberships = await this.prisma.linkAd.findMany({
       where: { linkId },
-      orderBy: { sortOrder: 'asc' },
+      orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
       include: { ad: true },
     });
     const flowMap = await this.flow.getTodayMap(memberships.map((m) => m.id));
@@ -322,10 +328,15 @@ export class LinksService {
       data: {
         ...(dto.weight !== undefined ? { weight: dto.weight } : {}),
         ...(dto.dailyLimit !== undefined ? { dailyLimit: dto.dailyLimit } : {}),
-        ...(dto.note !== undefined ? { note: dto.note } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
       },
     });
+    if (dto.note !== undefined) {
+      await this.prisma.ad.update({
+        where: { id: adId },
+        data: { description: dto.note.trim() },
+      });
+    }
 
     await this.flow.invalidateLinkConfig(link.shortCode);
     await this.audit.log({
@@ -339,13 +350,13 @@ export class LinksService {
         before: {
           weight: before.weight,
           dailyLimit: before.dailyLimit,
-          note: before.note,
+          note: before.ad.description,
           status: before.status,
         },
         after: {
           weight: after.weight,
           dailyLimit: after.dailyLimit,
-          note: after.note,
+          note: dto.note !== undefined ? dto.note.trim() : before.ad.description,
           status: after.status,
         },
       },

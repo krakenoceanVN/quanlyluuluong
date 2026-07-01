@@ -7,6 +7,7 @@ import PageHead from '../components/PageHead';
 import { adLinks, createAd, deleteAd, listAds, setAdStatus, updateAd } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { useDebounce } from '../hooks';
+import { naturalCompare } from '../utils/sort';
 import type { Ad } from '../types';
 
 export default function AdsPage() {
@@ -80,7 +81,8 @@ export default function AdsPage() {
     {
       title: '名称',
       dataIndex: 'name',
-      sorter: (a: Ad, b: Ad) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      sorter: (a: Ad, b: Ad) => naturalCompare(a.name, b.name),
+      defaultSortOrder: 'ascend',
       sortDirections: ['ascend', 'descend'],
       render: (v: string) => <b>{v}</b>,
     },

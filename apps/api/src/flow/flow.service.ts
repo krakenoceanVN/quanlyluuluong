@@ -25,6 +25,7 @@ export class FlowService {
     end
     local n = redis.call('INCR', KEYS[1])
     redis.call('EXPIRE', KEYS[1], ARGV[2])
+    redis.call('SADD', KEYS[2], ARGV[3])
     return n`;
 
   /** Atomically increment today's counter and mark it dirty for the sync worker. */
@@ -43,12 +44,13 @@ export class FlowService {
 
     const n = (await this.redis.client.eval(
       FlowService.INCR_LUA,
-      1,
+      2,
       key,
+      dirtyFlowSet(),
       String(base),
       String(FLOW_TTL_SEC),
+      `${linkAdId}|${date}`,
     )) as number;
-    await this.redis.client.sadd(dirtyFlowSet(), `${linkAdId}|${date}`);
     return Number(n);
   }
 

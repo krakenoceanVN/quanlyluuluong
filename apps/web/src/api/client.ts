@@ -85,6 +85,10 @@ http.interceptors.response.use(
     }
 
     const body = error.response?.data;
+    if (status >= 400) {
+      // eslint-disable-next-line no-console
+      console.error('[api]', status, error.config?.method?.toUpperCase(), error.config?.url, body ?? error.message);
+    }
     throw new ApiError(body?.message ?? error.message ?? '请求失败', status, body?.fields);
   },
 );

@@ -15,6 +15,12 @@ export class SyncWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
 
+  private static readonly ACK_LUA = `
+    if redis.call('GET', KEYS[1]) == ARGV[1] then
+      return redis.call('SREM', KEYS[2], ARGV[2])
+    end
+    return 0`;
+
   constructor(
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
@@ -59,7 +65,14 @@ export class SyncWorker implements OnModuleInit, OnModuleDestroy {
           // linkAd no longer exists → drop the counter quietly
           this.logger.warn(`skip sync ${member}: ${(e as Error).message}`);
         }
-        await this.redis.client.srem(dirtyFlowSet(), member);
+        await this.redis.client.eval(
+          SyncWorker.ACK_LUA,
+          2,
+          flowKey(linkAdId, date),
+          dirtyFlowSet(),
+          String(count),
+          member,
+        );
       }
     } catch (e) {
       this.logger.error(`flush failed: ${(e as Error).message}`);

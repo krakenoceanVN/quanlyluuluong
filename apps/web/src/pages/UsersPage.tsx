@@ -184,7 +184,11 @@ export default function UsersPage() {
           <Form.Item
             name="password"
             label={editing ? '重置密码（留空则不修改）' : '密码'}
-            rules={editing ? [] : [{ required: true, message: '请输入密码' }, { min: 6, message: '至少 6 个字符' }]}
+            rules={
+              editing
+                ? [{ min: 6, message: '至少 6 个字符' }]
+                : [{ required: true, message: '请输入密码' }, { min: 6, message: '至少 6 个字符' }]
+            }
           >
             <Input.Password placeholder={editing ? '留空保持不变' : '至少 6 个字符'} />
           </Form.Item>

@@ -40,8 +40,13 @@ export class ReportsService {
 
     const links = await this.prisma.link.findMany({
       where: { deletedAt: null, status: true },
-      orderBy: { createdAt: 'asc' },
-      include: { linkAds: { orderBy: { sortOrder: 'asc' }, include: { ad: true } } },
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        linkAds: {
+          orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
+          include: { ad: true },
+        },
+      },
     });
 
     const allMembershipIds = links.flatMap((l) => l.linkAds.map((m) => m.id));
@@ -87,8 +92,13 @@ export class ReportsService {
 
     const links = await this.prisma.link.findMany({
       where: linkWhere,
-      orderBy: { createdAt: 'asc' },
-      include: { linkAds: { orderBy: { sortOrder: 'asc' }, include: { ad: true } } },
+      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        linkAds: {
+          orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
+          include: { ad: true },
+        },
+      },
     });
 
     const result = [];
@@ -140,11 +150,16 @@ export class ReportsService {
       const prevTo = addDays(to, -1);
       const prevRows = ids.length
         ? await this.prisma.trafficDaily.findMany({
-            where: { linkAdId: { in: ids }, date: { gte: asUtcDate(prevFrom), lte: asUtcDate(prevTo) } },
+            where: {
+              linkAdId: { in: ids },
+              date: { gte: asUtcDate(prevFrom), lte: asUtcDate(prevTo) },
+            },
           })
         : [];
       const prevLive =
-        prevTo >= todayKey() && prevFrom <= todayKey() ? await this.flow.getTodayMap(ids) : new Map();
+        prevTo >= todayKey() && prevFrom <= todayKey()
+          ? await this.flow.getTodayMap(ids)
+          : new Map();
       const prevByMember = new Map<string, number>();
       for (const r of prevRows) {
         const dk = r.date.toISOString().slice(0, 10);

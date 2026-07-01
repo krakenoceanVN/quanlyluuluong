@@ -8,14 +8,15 @@ import EditableText from '../components/EditableText';
 import { getLink, listAds, replaceLinkAds } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { fmt } from '../hooks';
+import { naturalCompare } from '../utils/sort';
 
 /** Local draft row — weight/dailyLimit may be null (mới thêm, chưa nhập) → hiển thị "—". */
 interface DraftRow {
   adId: string;
   name: string;
   targetUrl: string;
-  weight: number | null;
-  dailyLimit: number | null;
+  weight: number;
+  dailyLimit: number;
   note: string; // = ad.description
   status: boolean;
 }
@@ -67,8 +68,8 @@ export default function LinkEditPage() {
         id,
         items.map((r) => ({
           adId: r.adId,
-          weight: r.weight as number,
-          dailyLimit: r.dailyLimit as number,
+          weight: r.weight,
+          dailyLimit: r.dailyLimit,
           status: r.status,
           note: r.note,
         })),
@@ -106,8 +107,8 @@ export default function LinkEditPage() {
         adId,
         name: ad?.name ?? adId,
         targetUrl: ad?.targetUrl ?? '',
-        weight: null,
-        dailyLimit: null,
+        weight: 0,
+        dailyLimit: 0,
         note: ad?.description ?? '',
         status: true,
       };
@@ -118,22 +119,23 @@ export default function LinkEditPage() {
   };
 
   const numParse = (raw: string): string | null => {
+    if (!raw.trim()) return '0';
     const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
-    if (isNaN(n) || n <= 0) {
-      message.error('请输入大于 0 的整数');
+    if (isNaN(n) || n < 0) {
+      message.error('请输入不小于 0 的整数');
       return null;
     }
     return String(n);
   };
 
-  const isWeightBad = (r: DraftRow) => !(typeof r.weight === 'number' && r.weight > 0);
-  const isLimitBad = (r: DraftRow) => !(typeof r.dailyLimit === 'number' && r.dailyLimit > 0);
+  const isWeightBad = (r: DraftRow) => !(typeof r.weight === 'number' && r.weight >= 0);
+  const isLimitBad = (r: DraftRow) => !(typeof r.dailyLimit === 'number' && r.dailyLimit >= 0);
 
   const onSubmit = () => {
     setAttempted(true);
     const bad = rows.filter((r) => isWeightBad(r) || isLimitBad(r));
     if (bad.length) {
-      message.error('请为所有广告填写「权重」与「量级」（大于 0 的整数）后再提交');
+      message.error('请为所有广告填写「权重」与「量级」（不小于 0 的整数）后再提交');
       return;
     }
     save.mutate(rows);
@@ -148,12 +150,12 @@ export default function LinkEditPage() {
       dataIndex: 'weight',
       width: 110,
       align: 'right' as const,
-      render: (v: number | null, r: DraftRow) => (
+      render: (v: number, r: DraftRow) => (
         <EditableText
-          value={v ?? ''}
+          value={v}
           width={80}
           align="right"
-          placeholder="必填"
+          placeholder="0"
           parse={numParse}
           invalid={attempted && isWeightBad(r)}
           onSave={(w) => updateRow(r.adId, { weight: Number(w) })}
@@ -165,14 +167,14 @@ export default function LinkEditPage() {
       dataIndex: 'dailyLimit',
       width: 130,
       align: 'right' as const,
-      render: (v: number | null, r: DraftRow) => (
+      render: (v: number, r: DraftRow) => (
         <EditableText
-          value={v ?? ''}
+          value={v}
           width={100}
           align="right"
-          placeholder="必填"
+          placeholder="0"
           parse={numParse}
-          display={(x) => (x === '' || x == null ? '' : fmt(Number(x)))} // trống → EditableText hiện "—"
+          display={(x) => fmt(Number(x))}
           invalid={attempted && isLimitBad(r)}
           onSave={(l) => updateRow(r.adId, { dailyLimit: Number(l) })}
         />
@@ -261,7 +263,7 @@ export default function LinkEditPage() {
             <Table rowKey="adId" size="small" pagination={false} columns={columns} dataSource={rows} />
             <div style={{ color: '#b7bccb', fontSize: 12, marginTop: 10 }}>
               提示：点击「权重」「量级」「备注」可直接编辑；广告组成、权重与量级修改后需点击右上角「提交」保存。
-              新增广告的权重/量级默认为空（—），提交前必须填写大于 0 的整数。
+              新增广告的权重/量级默认为 0；留空保存也会按 0 处理，0 表示不限制。
             </div>
           </>
         ) : (
@@ -291,7 +293,7 @@ export default function LinkEditPage() {
           <Transfer
             dataSource={(allAds.data?.items ?? [])
               .slice()
-              .sort((a, b) => (sortAsc ? 1 : -1) * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+              .sort((a, b) => (sortAsc ? 1 : -1) * naturalCompare(a.name, b.name))
               .map((a) => ({ key: a.id, title: a.name, description: a.description }))}
             titles={['可选广告', '广告单内']}
             targetKeys={targetKeys}
@@ -302,7 +304,7 @@ export default function LinkEditPage() {
             filterOption={(input, item) => (item.title ?? '').toLowerCase().includes(input.toLowerCase())}
           />
           <div style={{ color: '#b7bccb', fontSize: 12, marginTop: 10 }}>
-            选择后点「确定」加入列表；新增广告的权重/量级为空，请在上方表格填写后再「提交」。
+            选择后点「确定」加入列表；新增广告的权重/量级默认为 0。
           </div>
         </Card>
       )}

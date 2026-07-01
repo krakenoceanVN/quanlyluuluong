@@ -16,6 +16,7 @@ import {
 } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { useDebounce } from '../hooks';
+import { naturalCompare } from '../utils/sort';
 import type { LinkRow } from '../types';
 
 export default function LinksPage() {
@@ -114,7 +115,8 @@ export default function LinksPage() {
     {
       title: '名称',
       dataIndex: 'name',
-      sorter: (a: LinkRow, b: LinkRow) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      sorter: (a: LinkRow, b: LinkRow) => naturalCompare(a.name, b.name),
+      defaultSortOrder: 'ascend',
       sortDirections: ['ascend', 'descend'],
       render: (v: string, r: LinkRow) => (
         <a onClick={() => nav(`/links/${r.id}`)} style={{ fontWeight: 600 }}>

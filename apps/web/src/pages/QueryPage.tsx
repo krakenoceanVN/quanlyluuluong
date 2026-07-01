@@ -16,6 +16,7 @@ import EditableText from '../components/EditableText';
 import { getTraffic, updateAd, updateLinkAd } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { fmt, useDebounce } from '../hooks';
+import { naturalCompare } from '../utils/sort';
 import type { TrafficLink } from '../types';
 
 export default function QueryPage() {
@@ -57,7 +58,8 @@ export default function QueryPage() {
   });
 
   const links = useMemo(() => {
-    const all = data?.links ?? [];
+    const all = (data?.links ?? []).slice();
+    all.sort((a, b) => naturalCompare(a.name, b.name));
     if (!debLink) return all;
     const kw = debLink.toLowerCase();
     return all.filter((l) => l.name.toLowerCase().includes(kw));

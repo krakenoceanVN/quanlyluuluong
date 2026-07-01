@@ -85,12 +85,12 @@ export class LinkAdItemDto {
 
   @Type(() => Number)
   @IsInt({ message: '权重必须为整数' })
-  @Min(1, { message: '权重必须大于 0' })
+  @Min(0, { message: '权重不能小于 0' })
   weight!: number;
 
   @Type(() => Number)
   @IsInt({ message: '量级必须为整数' })
-  @Min(1, { message: '量级必须大于 0' })
+  @Min(0, { message: '量级不能小于 0' })
   dailyLimit!: number;
 
   @IsOptional()
