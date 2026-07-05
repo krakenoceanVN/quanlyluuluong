@@ -10,3 +10,11 @@
 	# web (nginx) phục vụ SPA và proxy /api, /main về api nội bộ
 	reverse_proxy web:80
 }
+
+# Domain phụ (alias) đi qua ESA. ESA origin mode "Full" chấp nhận cert tự ký,
+# nên dùng tls internal — không xin Let's Encrypt (ACME sau proxy dễ fail).
+p-pro.yaybyc.cn {
+	tls internal
+	encode gzip
+	reverse_proxy web:80
+}
