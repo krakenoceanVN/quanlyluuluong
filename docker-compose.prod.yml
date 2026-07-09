@@ -23,6 +23,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
+    # AOF everysec: crash chỉ mất tối đa ~1s bộ đếm (mặc định RDB có thể mất vài phút)
+    command: redis-server --appendonly yes
     volumes:
       - redisdata:/data
     healthcheck:
@@ -30,6 +32,42 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Sao lưu Postgres: pg_dump nén vào ./backups ngay khi khởi động rồi mỗi 24h,
+  # tự xóa bản cũ hơn BACKUP_KEEP_DAYS ngày. Khôi phục:
+  #   gunzip -c backups/<file>.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U $POSTGRES_USER $POSTGRES_DB
+  # Lưu ý: ./backups nằm cùng ổ đĩa máy chủ — nên cron thêm việc đẩy file lên OSS/S3.
+  backup:
+    image: postgres:16-alpine
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          ts=$$(date +%Y%m%d-%H%M%S)
+          if pg_dump -h postgres -U "$$POSTGRES_USER" "$$POSTGRES_DB" | gzip > "/backups/$$ts.sql.gz.tmp"; then
+            mv "/backups/$$ts.sql.gz.tmp" "/backups/$$ts.sql.gz"
+            echo "[backup] OK $$ts.sql.gz"
+            find /backups -name '*.sql.gz' -mtime +"$$BACKUP_KEEP_DAYS" -delete
+          else
+            rm -f "/backups/$$ts.sql.gz.tmp"
+            echo "[backup] FAILED $$ts — thử lại sau 1h"
+            sleep 3600
+            continue
+          fi
+          sleep 86400
+        done
 
   api:
     build:

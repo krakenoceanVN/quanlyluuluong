@@ -17,13 +17,15 @@ export class AdsService {
 
   /** Number of active (non-deleted) links that contain this ad. */
   private async usageCount(adId: string): Promise<number> {
-    return this.prisma.linkAd.count({ where: { adId, link: { deletedAt: null } } });
+    return this.prisma.linkAd.count({
+      where: { adId, deletedAt: null, link: { deletedAt: null } },
+    });
   }
 
   /** Invalidate cached config of every active link that contains this ad. */
   private async invalidateContainingLinks(adId: string): Promise<void> {
     const rows = await this.prisma.linkAd.findMany({
-      where: { adId, link: { deletedAt: null } },
+      where: { adId, deletedAt: null, link: { deletedAt: null } },
       select: { link: { select: { shortCode: true } } },
     });
     await Promise.all(rows.map((r) => this.flow.invalidateLinkConfig(r.link.shortCode)));
@@ -56,7 +58,7 @@ export class AdsService {
   /** Links that contain a given ad (for the 广告单数 drill-down). */
   async linksContaining(adId: string) {
     const rows = await this.prisma.linkAd.findMany({
-      where: { adId, link: { deletedAt: null } },
+      where: { adId, deletedAt: null, link: { deletedAt: null } },
       include: { link: { select: { id: true, name: true, description: true, status: true } } },
     });
     return rows.map((r) => r.link);

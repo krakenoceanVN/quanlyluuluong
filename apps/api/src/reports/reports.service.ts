@@ -58,7 +58,10 @@ export class ReportsService {
     return {
       date: day,
       links: links.map((l) => {
-        const ads = l.linkAds.map((m, i) => ({
+        // rows = cấu hình hiện tại (membership active); TỔNG thì cộng cả membership đã gỡ
+        // trong ngày để số hôm nay/hôm qua khớp lượng traffic đã phục vụ thật.
+        const active = l.linkAds.filter((m) => !m.deletedAt);
+        const ads = active.map((m, i) => ({
           seq: i + 1,
           linkAdId: m.id,
           adId: m.adId,
@@ -75,7 +78,7 @@ export class ReportsService {
           name: l.name,
           url: `${domain}/main/link/${l.shortCode}`,
           yesterdayTotal: l.linkAds.reduce((s, m) => s + (yesterdayMap.get(m.id) ?? 0), 0),
-          todayTotal: ads.reduce((s, a) => s + a.today, 0),
+          todayTotal: l.linkAds.reduce((s, m) => s + (todayMap.get(m.id) ?? 0), 0),
           ads,
         };
       }),
@@ -170,8 +173,14 @@ export class ReportsService {
         prevByMember.set(id, (prevByMember.get(id) ?? 0) + (v as number));
       }
 
+      // Tổng cộng CẢ membership đã gỡ (số liệu quá khứ bất biến); chỉ ẩn dòng
+      // đã gỡ khi nó không có traffic nào trong kỳ xem.
       const rangeTotal = memberships.reduce((s, m) => s + (totalByMember.get(m.id) ?? 0), 0);
       const prevRangeTotal = memberships.reduce((s, m) => s + (prevByMember.get(m.id) ?? 0), 0);
+      const visible = memberships.filter(
+        (m) =>
+          !m.deletedAt || (totalByMember.get(m.id) ?? 0) > 0 || (prevByMember.get(m.id) ?? 0) > 0,
+      );
 
       const domain = (process.env.PUBLIC_LINK_DOMAIN ?? 'http://localhost:3000').replace(/\/$/, '');
       result.push({
@@ -180,7 +189,7 @@ export class ReportsService {
         url: `${domain}/main/link/${l.shortCode}`,
         rangeTotal,
         prevRangeTotal,
-        ads: memberships.map((m, i) => ({
+        ads: visible.map((m, i) => ({
           seq: i + 1,
           adId: m.adId,
           name: m.ad.name,
@@ -188,6 +197,7 @@ export class ReportsService {
           weight: m.weight,
           dailyLimit: m.dailyLimit,
           status: m.status,
+          removed: !!m.deletedAt, // đã gỡ khỏi link nhưng còn số liệu trong kỳ
           note: m.ad.description, // đồng bộ với 描述 (广告管理)
           total: totalByMember.get(m.id) ?? 0,
           prevTotal: prevByMember.get(m.id) ?? 0,

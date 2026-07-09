@@ -6,6 +6,7 @@ coverage/
 .env
 .env.local
 .env.production
+backups/
 .DS_Store
 apps/web/dist/
 apps/api/dist/

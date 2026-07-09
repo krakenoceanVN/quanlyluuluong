@@ -62,7 +62,7 @@ export class EngineService {
     const link = await this.prisma.link.findFirst({
       where: { shortCode, deletedAt: null },
       include: {
-        linkAds: { include: { ad: true } },
+        linkAds: { where: { deletedAt: null }, include: { ad: true } },
         trackers: { include: { tracker: true } },
       },
     });

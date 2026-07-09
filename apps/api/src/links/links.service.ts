@@ -40,7 +40,7 @@ export class LinksService {
         orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { _count: { select: { linkAds: true } } },
+        include: { _count: { select: { linkAds: { where: { deletedAt: null } } } } },
       }),
       this.prisma.link.count({ where }),
     ]);
@@ -70,6 +70,7 @@ export class LinksService {
       where: { id, deletedAt: null },
       include: {
         linkAds: {
+          where: { deletedAt: null },
           orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
           include: { ad: true },
         },
@@ -153,7 +154,8 @@ export class LinksService {
 
     const data: Prisma.LinkUpdateInput = {};
     if (dto.name !== undefined && dto.name !== null) data.name = dto.name.trim();
-    if (dto.description !== undefined && dto.description !== null) data.description = dto.description;
+    if (dto.description !== undefined && dto.description !== null)
+      data.description = dto.description;
     if (dto.note !== undefined && dto.note !== null) data.note = dto.note;
 
     const after = await this.prisma.$transaction(async (tx) => {
@@ -170,9 +172,7 @@ export class LinksService {
           const validIds = new Set(existing.map((t) => t.id));
           const unknown = dto.trackerIds.filter((tid) => !validIds.has(tid));
           if (unknown.length) {
-            throw new BusinessConflictException(
-              `统计不存在或已删除：${unknown.join(', ')}`,
-            );
+            throw new BusinessConflictException(`统计不存在或已删除：${unknown.join(', ')}`);
           }
           await tx.linkTracker.createMany({
             data: dto.trackerIds.map((trackerId) => ({ linkId: id, trackerId })),
@@ -213,7 +213,7 @@ export class LinksService {
   async remove(id: string, userId: string) {
     const link = await this.prisma.link.findFirst({
       where: { id, deletedAt: null },
-      include: { _count: { select: { linkAds: true } } },
+      include: { _count: { select: { linkAds: { where: { deletedAt: null } } } } },
     });
     if (!link) throw new NotFoundException('链接不存在');
     if (link._count.linkAds > 0) {
@@ -238,7 +238,7 @@ export class LinksService {
     const link = await this.prisma.link.findFirst({ where: { id: linkId, deletedAt: null } });
     if (!link) throw new NotFoundException('链接不存在');
     const memberships = await this.prisma.linkAd.findMany({
-      where: { linkId },
+      where: { linkId, deletedAt: null },
       orderBy: [{ ad: { name: 'asc' } }, { sortOrder: 'asc' }],
       include: { ad: true },
     });
@@ -273,19 +273,20 @@ export class LinksService {
     const validIds = new Set(validAds.map((a) => a.id));
     const items = dto.items.filter((it) => validIds.has(it.adId));
 
-    const current = await this.prisma.linkAd.findMany({ where: { linkId } });
+    const current = await this.prisma.linkAd.findMany({ where: { linkId, deletedAt: null } });
     const keepIds = new Set(items.map((it) => it.adId));
     const toRemove = current.filter((m) => !keepIds.has(m.adId));
 
     await this.prisma.$transaction(async (tx) => {
-      // remove dropped memberships (+ their traffic to satisfy FK)
+      // soft-delete dropped memberships — giữ nguyên TrafficDaily để báo cáo ngày cũ không đổi
       if (toRemove.length) {
-        await tx.trafficDaily.deleteMany({
-          where: { linkAdId: { in: toRemove.map((m) => m.id) } },
+        await tx.linkAd.updateMany({
+          where: { id: { in: toRemove.map((m) => m.id) } },
+          data: { deletedAt: new Date() },
         });
-        await tx.linkAd.deleteMany({ where: { id: { in: toRemove.map((m) => m.id) } } });
       }
       // upsert each kept/added membership with its config
+      // (re-add một quảng cáo đã gỡ → hồi sinh đúng membership cũ, counter hôm nay tiếp tục đếm)
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         await tx.linkAd.upsert({
@@ -303,6 +304,7 @@ export class LinksService {
             dailyLimit: it.dailyLimit,
             ...(it.status !== undefined ? { status: it.status } : {}),
             sortOrder: i,
+            deletedAt: null,
           },
         });
         // 备注 = ad.description (đồng bộ theo quảng cáo)
@@ -330,7 +332,7 @@ export class LinksService {
       where: { linkId_adId: { linkId, adId } },
       include: { ad: true },
     });
-    if (!before) throw new NotFoundException('该广告不在此广告单内');
+    if (!before || before.deletedAt) throw new NotFoundException('该广告不在此广告单内');
 
     const after = await this.prisma.linkAd.update({
       where: { linkId_adId: { linkId, adId } },

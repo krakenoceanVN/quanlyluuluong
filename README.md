@@ -98,6 +98,9 @@ Ràng buộc xóa (trả **409** kèm message):
 - Xóa **Tracker** chỉ khi không `Link` nào dùng.
 
 Xóa là **soft-delete** (`deletedAt`); `TrafficDaily` lịch sử được giữ nguyên.
+Gỡ quảng cáo khỏi link (`LinkAd`) cũng là soft-delete: báo cáo các ngày cũ **không đổi**
+sau khi gỡ; re-add cùng quảng cáo sẽ hồi sinh membership cũ (counter hôm nay đếm tiếp).
+Ở trang 数据查询, dòng quảng cáo đã gỡ nhưng còn số liệu trong kỳ có cờ `removed: true`.
 
 ## Engine phân phối — `GET /main/link/:shortCode`
 

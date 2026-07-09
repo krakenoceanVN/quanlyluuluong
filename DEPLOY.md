@@ -82,11 +82,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml stop
 docker compose -f docker-compose.prod.yml start
 
-# sao lưu database
+# sao lưu database — service "backup" TỰ ĐỘNG pg_dump vào ./backups mỗi 24h
+# (giữ BACKUP_KEEP_DAYS ngày, mặc định 14). Xem log:
+docker compose -f docker-compose.prod.yml logs backup
+# muốn tạo bản sao lưu tay ngay lập tức:
 docker compose -f docker-compose.prod.yml exec postgres \
   pg_dump -U tms tms > backup_$(date +%F).sql
 
-# phục hồi
+# phục hồi (từ bản tự động: gunzip -c backups/<file>.sql.gz | ...)
 cat backup.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql -U tms -d tms
 ```
 
@@ -96,7 +99,7 @@ cat backup.sql | docker compose -f docker-compose.prod.yml exec -T postgres psql
 - [ ] Security Group **chỉ** mở 80/443 (+22). Không mở 5432/6379/3000.
 - [ ] `PUBLIC_LINK_DOMAIN` dùng `https://` + tên miền thật.
 - [ ] Đã thử đăng nhập và truy cập một link `/main/link/...`.
-- [ ] Lên lịch backup `pg_dump` định kỳ (cron) + snapshot đĩa ECS.
+- [ ] Backup tự động đã chạy (`docker compose -f docker-compose.prod.yml logs backup` thấy `[backup] OK`). File nằm trên cùng ổ đĩa — nên cron đẩy `./backups` lên OSS/S3 hoặc snapshot đĩa ECS.
 - [ ] (Khuyến nghị) đặt ECS sau Alibaba SLB/WAF nếu cần chịu tải / chống tấn công lớn.
 
 ## 7. Sự cố thường gặp
