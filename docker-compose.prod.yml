@@ -94,6 +94,10 @@ services:
       BUSINESS_UTC_OFFSET_MIN: ${BUSINESS_UTC_OFFSET_MIN:-480}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    # Publish CHỈ ra loopback host → nginx host proxy tới 127.0.0.1:3000 (không phụ
+    # thuộc IP container, restart Docker không đổi cổng). KHÔNG mở ra internet.
+    ports:
+      - "127.0.0.1:3000:3000"
     # migrate + seed (idempotent) + start
     command: sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"
 
@@ -106,6 +110,9 @@ services:
     restart: always
     depends_on:
       - api
+    # nginx host proxy /  → 127.0.0.1:8080 (loopback, không ra internet)
+    ports:
+      - "127.0.0.1:8080:80"
 
   caddy:
     image: caddy:2-alpine
