@@ -53,7 +53,11 @@ function sanitizeTrackers(trackers: string[]): string {
 
 /** Escape cho ngữ cảnh thuộc tính HTML. */
 function attrEscape(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function redirectPage(targetUrl: string, trackers: string[]): string {
@@ -90,7 +94,10 @@ export class EngineController {
     void this.stats.bump(shortCode, result.kind);
 
     if (result.kind === 'notfound') {
-      const p = htmlPage('<div class="box"><b>页面不存在</b><span>链接无效或已下线</span></div>', 404);
+      const p = htmlPage(
+        '<div class="box"><b>页面不存在</b><span>链接无效或已下线</span></div>',
+        404,
+      );
       res.status(p.status).type('html').send(p.html);
       return;
     }

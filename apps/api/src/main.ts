@@ -43,7 +43,10 @@ async function bootstrap() {
 
   // /api/v1 for everything except the public traffic engine (/main/link/:code)
   app.setGlobalPrefix('api/v1', {
-    exclude: [{ path: 'main/link/:shortCode', method: 0 /* GET */ }, { path: 'health', method: 0 }],
+    exclude: [
+      { path: 'main/link/:shortCode', method: 0 /* GET */ },
+      { path: 'health', method: 0 },
+    ],
   });
 
   app.useGlobalPipes(

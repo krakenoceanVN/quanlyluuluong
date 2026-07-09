@@ -1,4 +1,12 @@
-import { IsBoolean, IsOptional, IsString, IsUrl, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { NAME_RULE, trimStr } from '../../common/validation';
 

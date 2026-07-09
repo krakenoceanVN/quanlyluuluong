@@ -64,7 +64,11 @@ export class LinksController {
   }
 
   @Put(':id/ads')
-  replaceAds(@Param('id') id: string, @Body() dto: ReplaceLinkAdsDto, @CurrentUser() user: AuthUser) {
+  replaceAds(
+    @Param('id') id: string,
+    @Body() dto: ReplaceLinkAdsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.service.replaceAds(id, dto, user.userId);
   }
 

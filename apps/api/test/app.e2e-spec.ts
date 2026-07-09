@@ -53,9 +53,11 @@ describe('Traffic flow (e2e)', () => {
   it('create tracker → link(+tracker) → ad → add ad → engine increments counter', async () => {
     const auth = (r: request.Test) => r.set('Authorization', `Bearer ${token}`);
 
-    const tracker = await auth(
-      request(app.getHttpServer()).post('/api/v1/trackers'),
-    ).send({ name: `e2e-tracker-${uniq}`, description: '51la', code: '<script>/*t*/</script>' });
+    const tracker = await auth(request(app.getHttpServer()).post('/api/v1/trackers')).send({
+      name: `e2e-tracker-${uniq}`,
+      description: '51la',
+      code: '<script>/*t*/</script>',
+    });
     expect(tracker.status).toBe(201);
     const trackerId = tracker.body.data.id;
 

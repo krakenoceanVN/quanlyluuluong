@@ -11,7 +11,10 @@ export interface Weighted {
  *
  * @param rng injectable RNG in [0,1) for deterministic tests.
  */
-export function pickWeighted<T extends Weighted>(candidates: T[], rng: () => number = Math.random): T | null {
+export function pickWeighted<T extends Weighted>(
+  candidates: T[],
+  rng: () => number = Math.random,
+): T | null {
   if (candidates.length === 0) return null;
 
   const weights = candidates.map((c) => (c.weight > 0 ? c.weight : 0));

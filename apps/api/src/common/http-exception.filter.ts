@@ -34,7 +34,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       // #12: lỗi có status sẵn (vd body-parser 413 PayloadTooLarge) → giữ đúng status
-      const withStatus = exception as Error & { status?: number; statusCode?: number; type?: string };
+      const withStatus = exception as Error & {
+        status?: number;
+        statusCode?: number;
+        type?: string;
+      };
       const s = withStatus.status ?? withStatus.statusCode;
       if (typeof s === 'number' && s >= 400 && s < 600) {
         status = s;

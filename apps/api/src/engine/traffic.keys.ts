@@ -14,7 +14,8 @@ export const dirtyFlowSet = () => `flow:dirty`;
  * Hash với các field: redirect / fallback / notfound / throttled.
  * e.g. stat:engine:o702jib0:2026-07-01
  */
-export const engineStatKey = (shortCode: string, date: string) => `stat:engine:${shortCode}:${date}`;
+export const engineStatKey = (shortCode: string, date: string) =>
+  `stat:engine:${shortCode}:${date}`;
 
 /**
  * Lệch múi giờ nghiệp vụ (phút) để chốt "ngày" theo giờ địa phương, KHÔNG theo UTC.

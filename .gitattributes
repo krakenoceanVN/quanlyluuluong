@@ -1,0 +1,14 @@
+# Chốt line-ending LF cho mọi file text — tránh Windows checkout ra CRLF
+# làm prettier báo hàng trăm warning "Delete ␍" ảo.
+* text=auto eol=lf
+
+# File Windows-specific giữ CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary — không đụng line-ending
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
