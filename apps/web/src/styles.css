@@ -41,3 +41,27 @@ body {
 .kpi b {
   font-family: 'SF Mono', Consolas, monospace;
 }
+.app-content {
+  padding: 24px 28px 48px;
+}
+@media (max-width: 768px) {
+  .app-content {
+    padding: 12px 12px 32px;
+  }
+}
+.url-cell {
+  display: inline-block;
+  max-width: 440px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+@media (max-width: 1280px) {
+  .url-cell {
+    max-width: 300px;
+  }
+}
+.name-cell {
+  white-space: nowrap;
+}

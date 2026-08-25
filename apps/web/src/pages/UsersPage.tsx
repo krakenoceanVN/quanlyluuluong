@@ -119,7 +119,7 @@ export default function UsersPage() {
         title="用户管理"
         crumb="账号的创建、编辑（角色 / 重置密码）与删除 · 操作记录见「操作日志」"
         extra={
-          <Space>
+          <Space wrap>
             <Input.Search
               placeholder="用户名"
               allowClear
@@ -142,6 +142,7 @@ export default function UsersPage() {
           loading={isFetching}
           columns={columns}
           dataSource={data?.items ?? []}
+          scroll={{ x: 'max-content' }}
           pagination={{
             current: page,
             pageSize,

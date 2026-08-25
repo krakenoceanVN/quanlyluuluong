@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { useIsMobile } from '../hooks';
 
 const { Sider, Content } = Layout;
 
@@ -28,13 +29,21 @@ export default function AppLayout() {
   const nav = useNavigate();
   const loc = useLocation();
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
 
   // highlight parent for /links/:id
   const selected = loc.pathname.startsWith('/links') ? '/links' : loc.pathname;
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={218} theme="dark" breakpoint="lg" collapsedWidth={64} style={{ background: '#1c2230' }}>
+      <Sider
+        width={218}
+        theme="dark"
+        breakpoint="lg"
+        collapsedWidth={isMobile ? 0 : 64}
+        zeroWidthTriggerStyle={{ background: '#1c2230', top: 12 }}
+        style={{ background: '#1c2230' }}
+      >
         <div
           style={{
             display: 'flex',
@@ -78,7 +87,7 @@ export default function AppLayout() {
         </div>
       </Sider>
       <Layout>
-        <Content style={{ padding: '24px 28px 48px', overflow: 'auto' }}>
+        <Content className="app-content" style={{ overflow: 'auto' }}>
           <Outlet />
         </Content>
       </Layout>

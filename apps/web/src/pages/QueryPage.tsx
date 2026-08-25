@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import PageHead from '../components/PageHead';
+import UrlCell from '../components/UrlCell';
 import EditableText from '../components/EditableText';
 import { getTraffic, updateAd, updateLinkAd } from '../api/endpoints';
 import { ApiError } from '../api/client';
@@ -67,8 +68,8 @@ export default function QueryPage() {
 
   const makeColumns = (linkId: string) => [
     { title: '序列', dataIndex: 'seq', width: 60, align: 'center' as const },
-    { title: '名称', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
-    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
+    { title: '名称', dataIndex: 'name', width: 180, render: (v: string) => <b className="name-cell">{v}</b> },
+    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <UrlCell url={v} /> },
     { title: '权重', dataIndex: 'weight', align: 'right' as const, width: 80 },
     { title: '限流', dataIndex: 'dailyLimit', align: 'right' as const, width: 100, render: fmt },
     {
@@ -170,7 +171,7 @@ export default function QueryPage() {
               </ResponsiveContainer>
             </div>
             {l.ads.length ? (
-              <Table rowKey="adId" size="small" pagination={false} columns={makeColumns(l.id)} dataSource={l.ads} />
+              <Table rowKey="adId" size="small" pagination={false} columns={makeColumns(l.id)} dataSource={l.ads} scroll={{ x: 'max-content' }} />
             ) : (
               <Empty description="此广告单暂无广告" />
             )}

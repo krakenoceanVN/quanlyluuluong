@@ -4,6 +4,7 @@ import { ArrowLeftOutlined, SortAscendingOutlined, SortDescendingOutlined } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
+import UrlCell from '../components/UrlCell';
 import EditableText from '../components/EditableText';
 import { getLink, listAds, replaceLinkAds } from '../api/endpoints';
 import { ApiError } from '../api/client';
@@ -143,8 +144,8 @@ export default function LinkEditPage() {
 
   const columns = [
     { title: '序列', width: 60, align: 'center' as const, render: (_: unknown, __: DraftRow, i: number) => i + 1 },
-    { title: '名称（不可修改）', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
-    { title: '链接（不可修改）', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
+    { title: '名称（不可修改）', dataIndex: 'name', width: 180, render: (v: string) => <b className="name-cell">{v}</b> },
+    { title: '链接（不可修改）', dataIndex: 'targetUrl', render: (v: string) => <UrlCell url={v} /> },
     {
       title: '权重',
       dataIndex: 'weight',
@@ -250,7 +251,7 @@ export default function LinkEditPage() {
           </div>
         }
         extra={
-          <Space>
+          <Space wrap>
             <Button onClick={openTransfer}>编辑广告单内广告</Button>
             <Button type="primary" loading={save.isPending} disabled={!dirty} onClick={onSubmit}>
               提交
@@ -260,7 +261,7 @@ export default function LinkEditPage() {
       >
         {rows.length ? (
           <>
-            <Table rowKey="adId" size="small" pagination={false} columns={columns} dataSource={rows} />
+            <Table rowKey="adId" size="small" pagination={false} columns={columns} dataSource={rows} scroll={{ x: 'max-content' }} />
             <div style={{ color: '#b7bccb', fontSize: 12, marginTop: 10 }}>
               提示：点击「权重」「量级」「备注」可直接编辑；广告组成、权重与量级修改后需点击右上角「提交」保存。
               新增广告的权重/量级默认为 0；留空保存也会按 0 处理，0 表示不限制。

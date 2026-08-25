@@ -192,6 +192,6 @@ Chi tiết kiến trúc, quy ước code, luồng dữ liệu và hướng dẫn
 engine, test, deploy, sự cố thường gặp): xem **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
 ## Ghi chú
-
+07-08 (123,330 / 123,332 / 170,852)
 `traffic-management-prototype.html` ở thư mục gốc là bản prototype tĩnh ban đầu (một file HTML),
 được giữ lại làm tham chiếu thiết kế. Sản phẩm thực tế là monorepo `apps/api` + `apps/web`.

@@ -182,6 +182,7 @@ export default function LogsPage() {
           loading={isFetching}
           columns={columns}
           dataSource={data?.items ?? []}
+          scroll={{ x: 'max-content' }}
           expandable={{
             expandedRowRender: (r) => (
               <pre style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap', color: '#8a91a5' }}>

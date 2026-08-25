@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: '#1c2230' }}>
-      <Card style={{ width: 360, borderRadius: 12 }} bordered={false}>
+      <Card style={{ width: 'min(360px, calc(100vw - 32px))', borderRadius: 12 }} bordered={false}>
         <div style={{ textAlign: 'center', marginBottom: 22 }}>
           <div
             style={{

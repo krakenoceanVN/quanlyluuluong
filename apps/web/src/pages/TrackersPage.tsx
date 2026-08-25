@@ -121,6 +121,7 @@ export default function TrackersPage() {
               loading={isFetching}
               columns={columns}
               dataSource={data?.items ?? []}
+              scroll={{ x: 'max-content' }}
               pagination={{
                 current: page,
                 pageSize,

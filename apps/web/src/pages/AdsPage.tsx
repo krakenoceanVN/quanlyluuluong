@@ -4,6 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
+import UrlCell from '../components/UrlCell';
 import { adLinks, createAd, deleteAd, listAds, setAdStatus, updateAd } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import { useDebounce } from '../hooks';
@@ -86,7 +87,7 @@ export default function AdsPage() {
       sortDirections: ['ascend', 'descend'],
       render: (v: string) => <b>{v}</b>,
     },
-    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
+    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <UrlCell url={v} /> },
     { title: '描述', dataIndex: 'description' },
     {
       title: '广告单数',
@@ -133,7 +134,7 @@ export default function AdsPage() {
         title="广告管理"
         crumb="广告的创建、上下线与投放查询"
         extra={
-          <Space>
+          <Space wrap>
             <Input.Search
               placeholder="名称 / 链接 / 描述"
               allowClear
@@ -156,6 +157,7 @@ export default function AdsPage() {
           loading={isFetching}
           columns={columns}
           dataSource={data?.items ?? []}
+          scroll={{ x: 'max-content' }}
           pagination={{
             current: page,
             pageSize,

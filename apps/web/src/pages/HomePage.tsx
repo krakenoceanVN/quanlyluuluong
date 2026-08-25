@@ -3,6 +3,7 @@ import { Card, DatePicker, Empty, Switch, Table, Tag, App } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import PageHead from '../components/PageHead';
+import UrlCell from '../components/UrlCell';
 import { getDashboard, updateLinkAd } from '../api/endpoints';
 import { fmt } from '../hooks';
 import { naturalCompare } from '../utils/sort';
@@ -33,8 +34,8 @@ export default function HomePage() {
 
   const columns = (link: DashboardLink) => [
     { title: '序列', dataIndex: 'seq', width: 60, align: 'center' as const },
-    { title: '名称', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
-    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <span className="url-text">{v}</span> },
+    { title: '名称', dataIndex: 'name', width: 180, render: (v: string) => <b className="name-cell">{v}</b> },
+    { title: '链接', dataIndex: 'targetUrl', render: (v: string) => <UrlCell url={v} /> },
     { title: '权重', dataIndex: 'weight', align: 'right' as const, width: 80 },
     { title: '限流', dataIndex: 'dailyLimit', align: 'right' as const, width: 100, render: fmt },
     { title: '日流', dataIndex: 'today', align: 'right' as const, width: 100, render: (v: number) => <b>{fmt(v)}</b> },
@@ -76,7 +77,7 @@ export default function HomePage() {
               </div>
             }
             extra={
-              <div style={{ display: 'flex', gap: 18, fontSize: 12, color: '#8a91a5' }}>
+              <div style={{ display: 'flex', gap: 18, fontSize: 12, color: '#8a91a5', flexWrap: 'wrap' }}>
                 <span className="kpi">
                   昨日总量 <b>{link.ads.length ? fmt(link.yesterdayTotal) : '—'}</b>
                 </span>
@@ -95,6 +96,7 @@ export default function HomePage() {
                 pagination={false}
                 columns={columns(link)}
                 dataSource={link.ads}
+                scroll={{ x: 'max-content' }}
               />
             ) : (
               <Empty description="此广告单暂无广告 · 前往「链接管理」添加" />

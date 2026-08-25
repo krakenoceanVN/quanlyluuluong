@@ -185,7 +185,7 @@ export default function LinksPage() {
         title="链接管理"
         crumb="广告单链接的创建、上下线与编辑"
         extra={
-          <Space>
+          <Space wrap>
             <Input.Search
               placeholder="链接名称 / 描述 / 备注"
               allowClear
@@ -209,6 +209,7 @@ export default function LinksPage() {
           loading={isFetching}
           columns={columns}
           dataSource={data?.items ?? []}
+          scroll={{ x: 'max-content' }}
           pagination={{
             current: page,
             pageSize,
