@@ -121,3 +121,25 @@ model AuditLog {
   @@index([createdAt])
   @@index([userId])
 }
+
+/// Dấu vân tay thiết bị gửi về từ beacon chống gian lận (/main/beacon).
+/// Mỗi tổ hợp thuộc tính ỔN ĐỊNH (UA + màn hình + phần cứng + WebGL + canvas…) = đúng 1 dòng,
+/// khóa duy nhất theo `hash` (sha256). Gặp lại cùng thiết bị → hits+1, cập nhật last*.
+/// Không lưu IP.
+model Fingerprint {
+  id         String   @id
+  hash       String   @unique @db.Char(64)
+  /// Các thuộc tính ổn định dùng để tính hash
+  attrs      Json
+  userAgent  String
+  hits       Int      @default(1)
+  firstLink  String
+  lastLink   String
+  /// Mẫu thuộc tính hay thay đổi của lần gặp gần nhất (cửa sổ, mạng, thời gian…)
+  lastSample Json
+  firstSeen  DateTime @default(now())
+  lastSeen   DateTime @default(now())
+
+  @@index([lastSeen])
+  @@index([hits])
+}

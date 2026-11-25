@@ -14,6 +14,7 @@ import { AdsModule } from './ads/ads.module';
 import { LinksModule } from './links/links.module';
 import { ReportsModule } from './reports/reports.module';
 import { EngineModule } from './engine/engine.module';
+import { FingerprintModule } from './fingerprint/fingerprint.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { EngineModule } from './engine/engine.module';
     LinksModule,
     ReportsModule,
     EngineModule,
+    FingerprintModule,
   ],
   // ThrottleCountGuard = ThrottlerGuard + đếm 429 cho engine (cần EngineStatsService từ EngineModule).
   providers: [{ provide: APP_GUARD, useClass: ThrottleCountGuard }],
