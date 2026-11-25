@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { ValidationPipe, ValidationError } from '@nestjs/common';
+import { RequestMethod, ValidationPipe, ValidationError } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
@@ -41,11 +41,12 @@ async function bootstrap() {
   // #52/#50: lấy IP thật khi chạy sau reverse proxy (Caddy) → rate-limit & log đúng
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // /api/v1 for everything except the public traffic engine (/main/link/:code)
+  // /api/v1 for everything except the public traffic engine (/main/link/:code) + its beacon
   app.setGlobalPrefix('api/v1', {
     exclude: [
-      { path: 'main/link/:shortCode', method: 0 /* GET */ },
-      { path: 'health', method: 0 },
+      { path: 'main/link/:shortCode', method: RequestMethod.GET },
+      { path: 'main/beacon', method: RequestMethod.ALL },
+      { path: 'health', method: RequestMethod.GET },
     ],
   });
 
