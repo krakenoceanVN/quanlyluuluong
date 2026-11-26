@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { EngineService } from './engine.service';
@@ -60,23 +61,67 @@ function attrEscape(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-function redirectPage(targetUrl: string, trackers: string[]): string {
-  // JSON.stringify → chuỗi JS an toàn (xử lý ", \, xuống dòng) — fix #16/#39
-  const jsSafe = JSON.stringify(targetUrl);
+/** Thời gian chờ của trang trung gian trước khi chuyển tới quảng cáo. */
+export interface RedirectTiming {
+  /** Sau khi trang tải xong (mọi script thống kê đã tải) chờ thêm bấy nhiêu ms để chúng kịp gửi dữ liệu. */
+  afterLoadMs: number;
+  /** Trần tuyệt đối: quá mốc này thì chuyển luôn dù script thống kê chưa tải xong (mạng chậm, host bị chặn…). */
+  maxWaitMs: number;
+}
+
+export const DEFAULT_REDIRECT_TIMING: RedirectTiming = { afterLoadMs: 300, maxWaitMs: 1500 };
+
+/** Đọc số ms từ env, kẹp trong [0, 10000]; sai định dạng → giá trị mặc định. */
+export function readTimingMs(raw: unknown, fallback: number): number {
+  const n = Number(raw);
+  if (raw === undefined || raw === null || raw === '' || !Number.isFinite(n)) return fallback;
+  return Math.min(10000, Math.max(0, Math.round(n)));
+}
+
+export function redirectPage(
+  targetUrl: string,
+  trackers: string[],
+  timing: RedirectTiming = DEFAULT_REDIRECT_TIMING,
+): string {
+  // JSON.stringify → chuỗi JS an toàn (xử lý ", \, xuống dòng) — fix #16/#39.
+  // Thêm escape "<" để URL chứa "</script>" không thể đóng thẻ script sớm.
+  const jsSafe = JSON.stringify(targetUrl).replace(/</g, '\\u003c');
   const attrSafe = attrEscape(targetUrl);
+  const after = Math.max(0, Math.round(timing.afterLoadMs));
+  const max = Math.max(0, Math.round(timing.maxWaitMs));
+  // Trước đây cố định 120ms → SDK thống kê (51la…) thường chưa kịp gửi dữ liệu đã bị chuyển trang.
+  // Nay: chờ sự kiện load (script đồng bộ + script chèn động như hm.js đều đã tải) + `after` ms,
+  // nhưng không bao giờ quá `max` ms kể từ lúc chạy tới đây.
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <title>跳转中…</title>${sanitizeTrackers(trackers)}
-<script>setTimeout(function(){location.replace(${jsSafe})},120);</script>
+<script>(function(){var d=0;function go(){if(d)return;d=1;location.replace(${jsSafe})}
+setTimeout(go,${max});
+function arm(){setTimeout(go,${after})}
+if(document.readyState==='complete')arm();else window.addEventListener('load',arm);})();</script>
 <noscript><meta http-equiv="refresh" content="0;url=${attrSafe}"></noscript>
 </head><body></body></html>`;
 }
 
 @Controller()
 export class EngineController {
+  private readonly timing: RedirectTiming;
+
   constructor(
     private readonly engine: EngineService,
     private readonly stats: EngineStatsService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.timing = {
+      afterLoadMs: readTimingMs(
+        config.get('REDIRECT_AFTER_LOAD_MS'),
+        DEFAULT_REDIRECT_TIMING.afterLoadMs,
+      ),
+      maxWaitMs: readTimingMs(
+        config.get('REDIRECT_MAX_WAIT_MS'),
+        DEFAULT_REDIRECT_TIMING.maxWaitMs,
+      ),
+    };
+  }
 
   @SkipThrottle()
   @Get('health')
@@ -118,6 +163,9 @@ export class EngineController {
       res.redirect(302, result.targetUrl!);
       return;
     }
-    res.status(200).type('html').send(redirectPage(result.targetUrl!, result.trackers));
+    res
+      .status(200)
+      .type('html')
+      .send(redirectPage(result.targetUrl!, result.trackers, this.timing));
   }
 }
